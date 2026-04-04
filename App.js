@@ -23,7 +23,6 @@ import { Storage } from './src/utils/storage';
 
 const Tab = createBottomTabNavigator();
 
-// Tab Bar Icons Dictionary
 const TAB_ICONS = {
   Home:   { icon: 'home', label: 'Home', color: colors.primary },
   Chat:   { icon: 'message-circle', label: 'AI', color: colors.chat },
@@ -34,7 +33,6 @@ const TAB_ICONS = {
   Game:   { icon: 'crosshair', label: 'Games', color: colors.secondary },
 };
 
-// Custom Tab Icon Component
 function TabIcon({ name, focused }) {
   const { icon, label, color } = TAB_ICONS[name];
   return (
@@ -47,25 +45,28 @@ function TabIcon({ name, focused }) {
   );
 }
 
-// Main App Component
 export default function App() {
   const [isInitializing, setIsInitializing] = useState(true);
   const [showWelcome, setShowWelcome] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // Check if user is already logged in
+  // ✅ Persists session and listens for Auth changes
   useEffect(() => {
-    async function checkAuth() {
-      const savedUserId = await Storage.get('lifeos_user_id');
-      if (savedUserId) {
-        setIsAuthenticated(true);
-      }
-      setIsInitializing(false);
-    }
     checkAuth();
   }, []);
 
-  // 1. Loading State
+  async function checkAuth() {
+    const savedUserId = await Storage.get('lifeos_user_id');
+    if (savedUserId) {
+      setIsAuthenticated(true);
+      // If returning user, skip welcome after the first load of the session
+      setShowWelcome(false); 
+    } else {
+      setIsAuthenticated(false);
+    }
+    setIsInitializing(false);
+  }
+
   if (isInitializing) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
@@ -74,17 +75,18 @@ export default function App() {
     );
   }
 
-  // 2. Signup State (If no account is found)
   if (!isAuthenticated) {
     return (
       <>
         <StatusBar style="light" />
-        <SignupScreen onComplete={() => setIsAuthenticated(true)} />
+        <SignupScreen onComplete={() => {
+          setIsAuthenticated(true);
+          setShowWelcome(true); // Show welcome only for brand new signups
+        }} />
       </>
     );
   }
 
-  // 3. Welcome Screen State (Plays once after login/opening app)
   if (showWelcome) {
     return (
       <>
@@ -94,7 +96,6 @@ export default function App() {
     );
   }
 
-  // 4. Main App Interface
   return (
     <NavigationContainer>
       <StatusBar style="light" />

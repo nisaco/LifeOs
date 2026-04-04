@@ -20,7 +20,11 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0D0D1A"
       },
-      "package": "com.yourname.lifeos"
+      "package": "com.yourname.lifeos",
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -29,6 +33,11 @@
     "plugins": [
       "expo-audio",
       "expo-video"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "4aeee47c-7eb0-461d-9faf-0b841c84883f"
+      }
+    }
   }
 }
