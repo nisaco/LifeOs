@@ -1,4 +1,4 @@
-package com.yourname.lifeos
+package com.niikpakpo.lifeos
 
 import android.os.Build
 import android.os.Bundle

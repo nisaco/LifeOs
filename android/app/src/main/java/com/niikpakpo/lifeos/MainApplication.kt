@@ -1,4 +1,4 @@
-package com.yourname.lifeos
+package com.niikpakpo.lifeos
 
 import android.app.Application
 import android.content.res.Configuration
