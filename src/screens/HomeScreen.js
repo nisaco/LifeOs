@@ -1,18 +1,22 @@
 // src/screens/HomeScreen.js
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert, Platform, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors, spacing, radius, shadow } from '../utils/theme';
 import { Card, Row } from '../components/shared';
 import { Storage, KEYS } from '../utils/storage';
 import { format, isToday } from 'date-fns';
+import { Linking } from 'react-native';
 
 export default function HomeScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
-  const [currency, setCurrency] = useState('₵'); // ✅ Defaults to Cedi
+  const [currency, setCurrency] = useState('₵'); 
   const [spentToday, setSpentToday] = useState(0);
   const [pendingTasks, setPendingTasks] = useState(0);
   const [greeting, setGreeting] = useState('');
+  const [userName, setUserName] = useState('Nii'); // Default
+  const [isPro, setIsPro] = useState(false); // Track Pro status
+  const [payLoading, setPayLoading] = useState(false);
 
   useEffect(() => {
     loadDashboardData();
@@ -27,9 +31,16 @@ export default function HomeScreen({ navigation }) {
   }
 
   async function loadDashboardData() {
-    // ✅ Fetch the dynamic currency from the Budget settings
+    // Fetch user name and currency
+    const name = await Storage.get('lifeos_user_name') || 'User';
     const savedCurrency = await Storage.get('lifeos_budget_currency') || '₵';
+    setUserName(name);
     setCurrency(savedCurrency);
+
+    // ✅ In a real app, you'd fetch the latest 'isPro' status from your Render API here
+    // For now, we'll check local storage
+    const proStatus = await Storage.get('lifeos_is_pro') || false;
+    setIsPro(proStatus);
 
     // Get Budget Data for "Spent Today"
     const budgetData = await Storage.get(KEYS.BUDGET_ENTRIES) || [];
@@ -50,6 +61,39 @@ export default function HomeScreen({ navigation }) {
     setRefreshing(false);
   };
 
+  // ✅ Function to trigger Paystack (Logic placeholder for your familiarity)
+const handleUpgrade = async () => {
+  const userEmail = await Storage.get('lifeos_user_email'); // Ensure you saved email during signup
+  
+  if (!userEmail) {
+    Alert.alert("Error", "User email not found. Please sign out and sign in again.");
+    return;
+  }
+
+  setPayLoading(true);
+
+  try {
+    const response = await fetch('https://your-render-url.onrender.com/api/paystack/initialize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: userEmail, amount: 20 })
+    });
+
+    const data = await response.json();
+
+    if (data.authorization_url) {
+      // ✅ This opens the secure Paystack MoMo page in the user's browser
+      Linking.openURL(data.authorization_url);
+    } else {
+      throw new Error("Payment link generation failed");
+    }
+  } catch (err) {
+    Alert.alert("Payment Error", "Could not start payment. Check your internet.");
+  } finally {
+    setPayLoading(false);
+  }
+};
+
   const QuickAction = ({ icon, label, color, screen, subText }) => (
     <TouchableOpacity onPress={() => navigation.navigate(screen)} style={styles.actionCard} activeOpacity={0.8}>
       <View style={[styles.actionIconBg, { backgroundColor: color + '15' }]}>
@@ -65,19 +109,15 @@ export default function HomeScreen({ navigation }) {
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.greeting}>{greeting}</Text>
+          <Text style={styles.greeting}>{greeting}, {userName}</Text>
           <Text style={styles.date}>{format(new Date(), 'EEEE, MMMM do')}</Text>
         </View>
         
-        {/* ✅ Updated Sign Out Button */}
         <TouchableOpacity 
           style={styles.profileBtn}
           onPress={async () => {
-            // Wipe the saved user ID
             await Storage.set('lifeos_user_id', '');
             await Storage.set('lifeos_user_name', '');
-            
-            // Alert the user
             if (Platform.OS === 'web') {
               window.alert('Signed out successfully! Please refresh the page.');
             } else {
@@ -109,10 +149,29 @@ export default function HomeScreen({ navigation }) {
               <Text style={styles.statLabel}>Spent Today</Text>
               <Feather name="trending-down" size={16} color={colors.danger} />
             </Row>
-            {/* ✅ Dynamically injects the synced currency */}
             <Text style={[styles.statValue, { color: colors.danger }]}>{currency}{spentToday.toFixed(2)}</Text>
           </Card>
         </Row>
+
+        {/* ✅ Premium Pro Card (Only shows if NOT Pro) */}
+        {!isPro && (
+          <TouchableOpacity onPress={handleUpgrade} activeOpacity={0.9} style={{ marginBottom: spacing.lg }}>
+            <Card style={styles.proCard}>
+              <Row>
+                <View style={styles.proIconBg}>
+                  {payLoading ? <ActivityIndicator color="#FFD700" /> : <Feather name="star" size={24} color="#FFD700" />}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.proTitle}>Upgrade to LifeOS Pro</Text>
+                  <Text style={styles.proSub}>Unlimited AI, Cloud Backup & Reports</Text>
+                </View>
+                <View style={styles.priceBadge}>
+                   <Text style={styles.proPrice}>₵20/mo</Text>
+                </View>
+              </Row>
+            </Card>
+          </TouchableOpacity>
+        )}
 
         <Text style={styles.sectionTitle}>Life Modules</Text>
         
@@ -122,8 +181,6 @@ export default function HomeScreen({ navigation }) {
           <QuickAction icon="credit-card" label="Budget" color={colors.budget} screen="Budget" subText="Track expenses" />
           <QuickAction icon="clock" label="Focus" color={colors.focus} screen="Focus" subText="Start timer" />
           <QuickAction icon="message-circle" label="AI Assistant" color={colors.chat} screen="Chat" subText="Ask Gemini" />
-          
-          {/* ✅ New Mini Games Shortcut */}
           <QuickAction icon="crosshair" label="Mini Games" color={colors.secondary} screen="Game" subText="Tic-Tac-Toe" />
           <QuickAction icon="activity" label="Health" color={colors.health} screen="Health" subText="Log data" />
         </View>
@@ -172,4 +229,12 @@ const styles = StyleSheet.create({
   bannerIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.primary + '20', alignItems: 'center', justifyContent: 'center', marginRight: spacing.md },
   bannerTitle: { fontSize: 16, fontWeight: '800', color: colors.textPrimary, marginBottom: 4 },
   bannerSub: { fontSize: 13, color: colors.textSecondary, lineHeight: 18 },
+
+  /* ✅ Pro Card Styles */
+  proCard: { backgroundColor: '#1A1A1A', borderColor: '#FFD700', borderWidth: 1.5, padding: spacing.md },
+  proIconBg: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFD70020', alignItems: 'center', justifyContent: 'center', marginRight: spacing.md },
+  proTitle: { fontSize: 16, fontWeight: '900', color: '#FFD700' },
+  proSub: { fontSize: 12, color: '#AAAAAA', marginTop: 2 },
+  priceBadge: { backgroundColor: '#FFD700', paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.sm },
+  proPrice: { fontSize: 12, fontWeight: '900', color: '#000' },
 });

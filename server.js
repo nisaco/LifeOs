@@ -4,6 +4,8 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const path = require('path');
+const crypto = require('crypto'); // ✅ Added for Webhook security
+const axios = require('axios');   // ✅ Added for Paystack API calls
 
 const app = express();
 app.use(cors());
@@ -16,7 +18,6 @@ mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('✅ Connected to MongoDB'))
   .catch(err => console.error('❌ MongoDB Connection Error:', err));
 
-// ✅ UPDATED SCHEMA: Now groups messages by sessionId and creates a Title
 const chatSchema = new mongoose.Schema({
   userId: { type: String, required: true },
   sessionId: { type: String, required: true },
@@ -31,32 +32,35 @@ const chatSchema = new mongoose.Schema({
 
 const Chat = mongoose.model('Chat', chatSchema);
 
-// ✅ NEW: User Schema
 const userSchema = new mongoose.Schema({
   userId: { type: String, required: true, unique: true },
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
-  createdAt: { type: Date, default: Date.now }
+  isPro: { type: Boolean, default: false },
+  subscriptionEnd: { type: Date, default: null },
+  dailyChatCount: { type: Number, default: 0 },
+  lastChatReset: { type: Date, default: Date.now }
 });
 
 const User = mongoose.model('User', userSchema);
+
 // ==========================================
 // 2. GEMINI AI SETUP
 // ==========================================
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // ==========================================
-// 3. AUTHENTICATION ROUTES
+// 3. AUTHENTICATION & PAYMENT ROUTES
 // ==========================================
+
 app.post('/api/signup', async (req, res) => {
   try {
     const { name, email } = req.body;
     if (!name || !email) return res.status(400).json({ error: "Name and email are required." });
 
     const normalizedEmail = email.toLowerCase().trim();
-
-    // 1. Check if the user already exists (Smart Login)
     let existingUser = await User.findOne({ email: normalizedEmail });
+    
     if (existingUser) {
       return res.json({ 
         message: "Welcome back!", 
@@ -65,9 +69,7 @@ app.post('/api/signup', async (req, res) => {
       });
     }
 
-    // 2. Create a brand new user
     const generatedUserId = 'usr_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
-    
     const newUser = new User({
       userId: generatedUserId,
       name: name.trim(),
@@ -75,24 +77,70 @@ app.post('/api/signup', async (req, res) => {
     });
 
     await newUser.save();
-
-    res.json({ 
-      message: "Account created successfully!", 
-      userId: newUser.userId, 
-      name: newUser.name 
-    });
-
+    res.json({ message: "Account created successfully!", userId: newUser.userId, name: newUser.name });
   } catch (error) {
     console.error("Signup Error:", error);
     res.status(500).json({ error: "Failed to create account." });
   }
 });
 
+// ✅ NEW: Initialize Paystack Transaction
+app.post('/api/paystack/initialize', async (req, res) => {
+  try {
+    const { email, amount } = req.body; // Amount in GHS (e.g. 20)
+
+    const response = await axios.post(
+      'https://api.paystack.co/transaction/initialize',
+      {
+        email: email,
+        amount: amount * 100, // Convert to pesewas
+        currency: "GHS",
+        metadata: {
+          custom_fields: [{ display_name: "Service", variable_name: "service", value: "LifeOS Pro" }]
+        }
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    res.json(response.data.data);
+  } catch (error) {
+    console.error("Paystack Init Error:", error.response ? error.response.data : error.message);
+    res.status(500).json({ error: "Could not initialize payment" });
+  }
+});
+
+// ✅ Webhook for Paystack to notify server of successful payment
+app.post('/api/paystack/webhook', async (req, res) => {
+  const hash = crypto.createHmac('sha512', process.env.PAYSTACK_SECRET_KEY)
+                     .update(JSON.stringify(req.body))
+                     .digest('hex');
+
+  if (hash === req.headers['x-paystack-signature']) {
+    const event = req.body;
+    if (event.event === 'charge.success') {
+      const userEmail = event.data.customer.email;
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + 30); // 30 days of Pro
+
+      await User.findOneAndUpdate(
+        { email: userEmail },
+        { isPro: true, subscriptionEnd: expiryDate }
+      );
+      console.log(`✅ User ${userEmail} upgraded to PRO via MoMo`);
+    }
+  }
+  res.sendStatus(200);
+});
+
 // ==========================================
 // 4. THE CHAT ROUTES
 // ==========================================
 
-// A. Send a message
 app.post('/api/chat', async (req, res) => {
   try {
     const { userId, sessionId, messages } = req.body;
@@ -101,12 +149,10 @@ app.post('/api/chat', async (req, res) => {
       return res.status(400).json({ error: "Missing userId or messages" });
     }
 
-    // Generate a session ID if this is a brand new chat
     const activeSessionId = sessionId || Date.now().toString();
-    // Auto-generate a title based on the first message
     const chatTitle = messages[0].content.substring(0, 30) + (messages[0].content.length > 30 ? '...' : '');
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); // Note: Ensure your model name is correct
 
     const history = messages.slice(0, -1).map(msg => ({
       role: msg.role === 'assistant' ? 'model' : 'user',
@@ -114,12 +160,10 @@ app.post('/api/chat', async (req, res) => {
     }));
     
     const latestMessage = messages[messages.length - 1].content;
-
     const chatSession = model.startChat({ history });
     const result = await chatSession.sendMessage(latestMessage);
     const aiResponseText = result.response.text();
 
-    // Save to the specific session thread
     await Chat.findOneAndUpdate(
       { userId: userId, sessionId: activeSessionId },
       { 
@@ -136,16 +180,13 @@ app.post('/api/chat', async (req, res) => {
       { upsert: true, returnDocument: 'after' }
     );
 
-    // Send back the reply AND the sessionId so the frontend knows which thread it's in
     res.json({ reply: aiResponseText, sessionId: activeSessionId });
-
   } catch (error) {
     console.error("Server Error:", error);
     res.status(500).json({ error: "Failed to process chat." });
   }
 });
 
-// B. Fetch the list of sessions for the Sidebar
 app.get('/api/chat/sessions/:userId', async (req, res) => {
   try {
     const chats = await Chat.find({ userId: req.params.userId })
@@ -157,7 +198,6 @@ app.get('/api/chat/sessions/:userId', async (req, res) => {
   }
 });
 
-// C. Fetch the messages for a specific session
 app.get('/api/chat/history/:sessionId', async (req, res) => {
   try {
     const chat = await Chat.findOne({ sessionId: req.params.sessionId });
@@ -167,7 +207,6 @@ app.get('/api/chat/history/:sessionId', async (req, res) => {
   }
 });
 
-// D. Delete a specific session
 app.delete('/api/chat/history/:sessionId', async (req, res) => {
   try {
     await Chat.findOneAndDelete({ sessionId: req.params.sessionId });
@@ -178,19 +217,13 @@ app.delete('/api/chat/history/:sessionId', async (req, res) => {
 });
 
 // ==========================================
-// STATIC FILE SERVING (FOR RENDER DEPLOYMENT)
+// STATIC FILE SERVING & MONITORING
 // ==========================================
-const frontendDistPath = path.join(__dirname, 'frontend', 'dist');
-app.use(express.static(frontendDistPath));
-
-// ✅ Add this so you can verify the server is working in your browser
 app.get('/', (req, res) => {
   res.send('LifeOS API is running smoothly!');
 });
-// ==========================================
-// 4. START THE SERVER
-// ==========================================
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Server running on port ${PORT} (Accepting external connections)`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
