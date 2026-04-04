@@ -4,30 +4,23 @@
     "slug": "lifeos",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0D0D1A"
-    },
+    "backgroundColor": "#0D0D1A",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.yourname.lifeos"
+      "bundleIdentifier": "com.niikpakpo.lifeos"
     },
     "android": {
+      "package": "com.niikpakpo.lifeos",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0D0D1A"
       },
-      "package": "com.yourname.lifeos",
       "permissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS"
       ]
     },
     "web": {
-      "favicon": "./assets/favicon.png",
       "bundler": "metro"
     },
     "plugins": [
