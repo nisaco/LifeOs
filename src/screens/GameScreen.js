@@ -4,7 +4,8 @@ import { View, Text, TouchableOpacity, StyleSheet, TextInput, ScrollView, Activi
 import { Feather } from '@expo/vector-icons';
 import { colors, spacing, radius, shadow } from '../utils/theme';
 import { PrimaryButton, Card, Row, Chip } from '../components/shared';
-
+import { useAudioPlayer } from 'expo-audio';
+import { VideoView, useVideoPlayer } from 'expo-video';
 const DIFFICULTIES = ['Easy', 'Medium', 'Hard'];
 
 export default function GameScreen() {
