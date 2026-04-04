@@ -73,13 +73,15 @@ const handleUpgrade = async () => {
   setPayLoading(true);
 
   try {
-    const response = await fetch('https://your-render-url.onrender.com/api/paystack/initialize', {
+    console.log("3. Calling Render API...");
+    const response = await fetch('https://lifeos-api-js9i.onrender.com/api/paystack/initialize', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: userEmail, amount: 20 })
     });
 
     const data = await response.json();
+    console.log("4. Paystack Response:", data);
 
     if (data.authorization_url) {
       // ✅ This opens the secure Paystack MoMo page in the user's browser
@@ -88,6 +90,7 @@ const handleUpgrade = async () => {
       throw new Error("Payment link generation failed");
     }
   } catch (err) {
+    console.log("❌ Error:", err);
     Alert.alert("Payment Error", "Could not start payment. Check your internet.");
   } finally {
     setPayLoading(false);
@@ -177,10 +180,10 @@ const handleUpgrade = async () => {
         
         {/* Module Grid */}
         <View style={styles.grid}>
+          <QuickAction icon="message-circle" label="AI Assistant" color={colors.chat} screen="Chat" subText="Ask LifeOs" />
           <QuickAction icon="check-square" label="Tasks" color={colors.tasks} screen="Tasks" subText={`${pendingTasks} pending`} />
           <QuickAction icon="credit-card" label="Budget" color={colors.budget} screen="Budget" subText="Track expenses" />
           <QuickAction icon="clock" label="Focus" color={colors.focus} screen="Focus" subText="Start timer" />
-          <QuickAction icon="message-circle" label="AI Assistant" color={colors.chat} screen="Chat" subText="Ask Gemini" />
           <QuickAction icon="crosshair" label="Mini Games" color={colors.secondary} screen="Game" subText="Tic-Tac-Toe" />
           <QuickAction icon="activity" label="Health" color={colors.health} screen="Health" subText="Log data" />
         </View>

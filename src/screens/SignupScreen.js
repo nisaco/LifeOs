@@ -37,6 +37,7 @@ export default function SignupScreen({ onComplete }) {
       // ✅ Save the real, database-verified userId to the phone!
       await Storage.set('lifeos_user_id', data.userId);
       await Storage.set('lifeos_user_name', data.name);
+      await Storage.set('lifeos_user_email', email.trim().toLowerCase());
 
       // Bypass this screen forever
       onComplete();

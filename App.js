@@ -26,7 +26,7 @@ const Tab = createBottomTabNavigator();
 // Tab Bar Icons Dictionary
 const TAB_ICONS = {
   Home:   { icon: 'home', label: 'Home', color: colors.primary },
-  Chat:   { icon: 'message-circle', label: 'AI Chat', color: colors.chat },
+  Chat:   { icon: 'message-circle', label: 'AI', color: colors.chat },
   Tasks:  { icon: 'check-square', label: 'Tasks', color: colors.tasks },
   Budget: { icon: 'credit-card', label: 'Budget', color: colors.budget },
   Health: { icon: 'activity', label: 'Health', color: colors.health },
