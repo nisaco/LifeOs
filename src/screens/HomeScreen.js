@@ -1,6 +1,6 @@
 // src/screens/HomeScreen.js
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert, Platform } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors, spacing, radius, shadow } from '../utils/theme';
 import { Card, Row } from '../components/shared';
@@ -68,8 +68,24 @@ export default function HomeScreen({ navigation }) {
           <Text style={styles.greeting}>{greeting}</Text>
           <Text style={styles.date}>{format(new Date(), 'EEEE, MMMM do')}</Text>
         </View>
-        <TouchableOpacity style={styles.profileBtn}>
-          <Feather name="user" size={20} color={colors.textPrimary} />
+        
+        {/* ✅ Updated Sign Out Button */}
+        <TouchableOpacity 
+          style={styles.profileBtn}
+          onPress={async () => {
+            // Wipe the saved user ID
+            await Storage.set('lifeos_user_id', '');
+            await Storage.set('lifeos_user_name', '');
+            
+            // Alert the user
+            if (Platform.OS === 'web') {
+              window.alert('Signed out successfully! Please refresh the page.');
+            } else {
+              Alert.alert('Signed Out', 'Please restart the app to sign in again.');
+            }
+          }}
+        >
+          <Feather name="log-out" size={20} color={colors.textPrimary} />
         </TouchableOpacity>
       </View>
 
