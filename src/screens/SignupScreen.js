@@ -22,7 +22,7 @@ export default function SignupScreen({ onComplete }) {
 
     try {
       // ✅ Send data securely to your MongoDB backend
-      const response = await fetch('http://localhost:3000/api/signup', {
+      const response = await fetch('https://lifeos-api-js9i.onrender.com', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: name.trim(), email: email.trim() })
