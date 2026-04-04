@@ -183,10 +183,10 @@ app.delete('/api/chat/history/:sessionId', async (req, res) => {
 const frontendDistPath = path.join(__dirname, 'frontend', 'dist');
 app.use(express.static(frontendDistPath));
 
-app.get(/.*/, (req, res) => {
-  res.sendFile(path.join(frontendDistPath, 'index.html'));
+// ✅ Add this so you can verify the server is working in your browser
+app.get('/', (req, res) => {
+  res.send('LifeOS API is running smoothly!');
 });
-
 // ==========================================
 // 4. START THE SERVER
 // ==========================================
