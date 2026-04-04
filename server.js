@@ -95,6 +95,7 @@ app.post('/api/paystack/initialize', async (req, res) => {
         email: email,
         amount: amount * 100, // Convert to pesewas
         currency: "GHS",
+        callback_url: "exp://10.22.31.127:8081",
         metadata: {
           custom_fields: [{ display_name: "Service", variable_name: "service", value: "LifeOS Pro" }]
         }
