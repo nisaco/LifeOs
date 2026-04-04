@@ -5,7 +5,8 @@ import {
   StyleSheet, Vibration, Modal, TextInput, Platform 
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { Audio } from 'expo-av';
+import { useAudioPlayer } from 'expo-audio';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import { colors, spacing, radius, shadow } from '../utils/theme';
 import { Storage, KEYS } from '../utils/storage';
 import { Card, Row, PrimaryButton } from '../components/shared';

@@ -1,12 +1,11 @@
 // src/screens/HomeScreen.js
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert, Platform, ActivityIndicator, Linking } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors, spacing, radius, shadow } from '../utils/theme';
 import { Card, Row } from '../components/shared';
 import { Storage, KEYS } from '../utils/storage';
 import { format, isToday } from 'date-fns';
-import { Linking } from 'react-native';
 
 export default function HomeScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
@@ -31,25 +30,20 @@ export default function HomeScreen({ navigation }) {
   }
 
   async function loadDashboardData() {
-    // Fetch user name and currency
     const name = await Storage.get('lifeos_user_name') || 'User';
     const savedCurrency = await Storage.get('lifeos_budget_currency') || '₵';
     setUserName(name);
     setCurrency(savedCurrency);
 
-    // ✅ In a real app, you'd fetch the latest 'isPro' status from your Render API here
-    // For now, we'll check local storage
     const proStatus = await Storage.get('lifeos_is_pro') || false;
     setIsPro(proStatus);
 
-    // Get Budget Data for "Spent Today"
     const budgetData = await Storage.get(KEYS.BUDGET_ENTRIES) || [];
     const todayExpenses = budgetData
       .filter(e => e.type === 'expense' && isToday(new Date(e.date)))
       .reduce((sum, e) => sum + e.amount, 0);
     setSpentToday(todayExpenses);
 
-    // Get Tasks Data
     const tasksData = await Storage.get(KEYS.TASKS) || [];
     const openTasks = tasksData.filter(t => !t.completed).length;
     setPendingTasks(openTasks);
@@ -61,41 +55,49 @@ export default function HomeScreen({ navigation }) {
     setRefreshing(false);
   };
 
-  // ✅ Function to trigger Paystack (Logic placeholder for your familiarity)
-const handleUpgrade = async () => {
-  const userEmail = await Storage.get('lifeos_user_email'); // Ensure you saved email during signup
-  
-  if (!userEmail) {
-    Alert.alert("Error", "User email not found. Please sign out and sign in again.");
-    return;
-  }
-
-  setPayLoading(true);
-
-  try {
-    console.log("3. Calling Render API...");
-    const response = await fetch('https://lifeos-api-js9i.onrender.com/api/paystack/initialize', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: userEmail, amount: 20 })
-    });
-
-    const data = await response.json();
-    console.log("4. Paystack Response:", data);
-
-    if (data.authorization_url) {
-      // ✅ This opens the secure Paystack MoMo page in the user's browser
-      Linking.openURL(data.authorization_url);
-    } else {
-      throw new Error("Payment link generation failed");
+  const handleUpgrade = async () => {
+    // Check for email
+    const userEmail = await Storage.get('lifeos_user_email');
+    
+    if (!userEmail) {
+      Alert.alert(
+        "Session Expired", 
+        "To start a payment, we need to verify your email. Please Log Out and Sign Up again.",
+        [{ text: "OK" }]
+      );
+      return;
     }
-  } catch (err) {
-    console.log("❌ Error:", err);
-    Alert.alert("Payment Error", "Could not start payment. Check your internet.");
-  } finally {
-    setPayLoading(false);
-  }
-};
+
+    setPayLoading(true);
+
+    try {
+      console.log("Calling Render API for:", userEmail);
+      const response = await fetch('https://lifeos-api-js9i.onrender.com/api/paystack/initialize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: userEmail, amount: 20 })
+      });
+
+      const data = await response.json();
+
+      if (data.authorization_url) {
+        // ✅ The core command to open the browser
+        const supported = await Linking.canOpenURL(data.authorization_url);
+        if (supported) {
+          await Linking.openURL(data.authorization_url);
+        } else {
+          Alert.alert("Error", "Your device cannot open the payment link.");
+        }
+      } else {
+        throw new Error("Payment link generation failed");
+      }
+    } catch (err) {
+      console.log("❌ Error:", err);
+      Alert.alert("Payment Error", "The server is taking too long to wake up. Please try again in 10 seconds.");
+    } finally {
+      setPayLoading(false);
+    }
+  };
 
   const QuickAction = ({ icon, label, color, screen, subText }) => (
     <TouchableOpacity onPress={() => navigation.navigate(screen)} style={styles.actionCard} activeOpacity={0.8}>
@@ -109,7 +111,6 @@ const handleUpgrade = async () => {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <View>
           <Text style={styles.greeting}>{greeting}, {userName}</Text>
@@ -121,6 +122,7 @@ const handleUpgrade = async () => {
           onPress={async () => {
             await Storage.set('lifeos_user_id', '');
             await Storage.set('lifeos_user_name', '');
+            await Storage.set('lifeos_user_email', '');
             if (Platform.OS === 'web') {
               window.alert('Signed out successfully! Please refresh the page.');
             } else {
@@ -137,7 +139,6 @@ const handleUpgrade = async () => {
         contentContainerStyle={{ padding: spacing.md, paddingBottom: 100 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
       >
-        {/* At a Glance Cards */}
         <Row style={{ gap: spacing.md, marginBottom: spacing.lg }}>
           <Card style={styles.statCard}>
             <Row style={{ justifyContent: 'space-between', marginBottom: spacing.sm }}>
@@ -156,7 +157,6 @@ const handleUpgrade = async () => {
           </Card>
         </Row>
 
-        {/* ✅ Premium Pro Card (Only shows if NOT Pro) */}
         {!isPro && (
           <TouchableOpacity onPress={handleUpgrade} activeOpacity={0.9} style={{ marginBottom: spacing.lg }}>
             <Card style={styles.proCard}>
@@ -178,7 +178,6 @@ const handleUpgrade = async () => {
 
         <Text style={styles.sectionTitle}>Life Modules</Text>
         
-        {/* Module Grid */}
         <View style={styles.grid}>
           <QuickAction icon="message-circle" label="AI Assistant" color={colors.chat} screen="Chat" subText="Ask LifeOs" />
           <QuickAction icon="check-square" label="Tasks" color={colors.tasks} screen="Tasks" subText={`${pendingTasks} pending`} />
@@ -188,7 +187,6 @@ const handleUpgrade = async () => {
           <QuickAction icon="activity" label="Health" color={colors.health} screen="Health" subText="Log data" />
         </View>
 
-        {/* Motivational Banner */}
         <TouchableOpacity activeOpacity={0.9}>
           <Card style={styles.bannerCard}>
             <Row>
@@ -203,7 +201,6 @@ const handleUpgrade = async () => {
             </Row>
           </Card>
         </TouchableOpacity>
-
       </ScrollView>
     </View>
   );
@@ -215,25 +212,19 @@ const styles = StyleSheet.create({
   greeting: { fontSize: 24, fontWeight: '900', color: colors.textPrimary, letterSpacing: -0.5 },
   date: { fontSize: 14, color: colors.textSecondary, marginTop: 4, fontWeight: '500' },
   profileBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.bgCard, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
-  
   statCard: { flex: 1, padding: spacing.md, backgroundColor: colors.bgCard },
   statLabel: { fontSize: 13, fontWeight: '800', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
   statValue: { fontSize: 28, fontWeight: '900', letterSpacing: -1 },
-
   sectionTitle: { fontSize: 18, fontWeight: '800', color: colors.textPrimary, marginBottom: spacing.md, paddingHorizontal: spacing.xs },
-  
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, marginBottom: spacing.xl },
   actionCard: { width: '47%', backgroundColor: colors.bgCard, borderRadius: radius.xl, padding: spacing.lg, borderWidth: 1, borderColor: colors.border, ...shadow.sm },
   actionIconBg: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md },
   actionLabel: { fontSize: 16, fontWeight: '800', color: colors.textPrimary, marginBottom: 4 },
   actionSub: { fontSize: 12, color: colors.textSecondary, fontWeight: '500' },
-
   bannerCard: { backgroundColor: colors.primary + '10', borderColor: colors.primary + '30', borderWidth: 1 },
   bannerIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.primary + '20', alignItems: 'center', justifyContent: 'center', marginRight: spacing.md },
   bannerTitle: { fontSize: 16, fontWeight: '800', color: colors.textPrimary, marginBottom: 4 },
   bannerSub: { fontSize: 13, color: colors.textSecondary, lineHeight: 18 },
-
-  /* ✅ Pro Card Styles */
   proCard: { backgroundColor: '#1A1A1A', borderColor: '#FFD700', borderWidth: 1.5, padding: spacing.md },
   proIconBg: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFD70020', alignItems: 'center', justifyContent: 'center', marginRight: spacing.md },
   proTitle: { fontSize: 16, fontWeight: '900', color: '#FFD700' },
