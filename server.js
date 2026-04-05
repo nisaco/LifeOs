@@ -4,12 +4,20 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const path = require('path');
-const crypto = require('crypto'); // ✅ Added for Webhook security
-const axios = require('axios');   // ✅ Added for Paystack API calls
+const crypto = require('crypto');
+const axios = require('axios');
+const http = require('http'); // ✅ Added for Socket.io
+const { Server } = require('socket.io'); // ✅ Added for Socket.io
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// ✅ Create HTTP Server and Socket.io instance
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: { origin: "*" }
+});
 
 // ==========================================
 // 1. MONGODB DATABASE SETUP
@@ -84,16 +92,15 @@ app.post('/api/signup', async (req, res) => {
   }
 });
 
-// ✅ NEW: Initialize Paystack Transaction
 app.post('/api/paystack/initialize', async (req, res) => {
   try {
-    const { email, amount } = req.body; // Amount in GHS (e.g. 20)
+    const { email, amount } = req.body; 
 
     const response = await axios.post(
       'https://api.paystack.co/transaction/initialize',
       {
         email: email,
-        amount: amount * 100, // Convert to pesewas
+        amount: amount * 100, 
         currency: "GHS",
         callback_url: "exp://10.22.31.127:8081",
         metadata: {
@@ -115,7 +122,6 @@ app.post('/api/paystack/initialize', async (req, res) => {
   }
 });
 
-// ✅ Webhook for Paystack to notify server of successful payment
 app.post('/api/paystack/webhook', async (req, res) => {
   const hash = crypto.createHmac('sha512', process.env.PAYSTACK_SECRET_KEY)
                      .update(JSON.stringify(req.body))
@@ -126,7 +132,7 @@ app.post('/api/paystack/webhook', async (req, res) => {
     if (event.event === 'charge.success') {
       const userEmail = event.data.customer.email;
       const expiryDate = new Date();
-      expiryDate.setDate(expiryDate.getDate() + 30); // 30 days of Pro
+      expiryDate.setDate(expiryDate.getDate() + 30); 
 
       await User.findOneAndUpdate(
         { email: userEmail },
@@ -153,7 +159,8 @@ app.post('/api/chat', async (req, res) => {
     const activeSessionId = sessionId || Date.now().toString();
     const chatTitle = messages[0].content.substring(0, 30) + (messages[0].content.length > 30 ? '...' : '');
 
-    const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" }); // Note: Ensure your model name is correct
+    // ✅ Using stable 1.5-flash to ensure 2026 compatibility
+    const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" }); 
 
     const history = messages.slice(0, -1).map(msg => ({
       role: msg.role === 'assistant' ? 'model' : 'user',
@@ -218,20 +225,59 @@ app.delete('/api/chat/history/:sessionId', async (req, res) => {
 });
 
 // ==========================================
-// STATIC FILE SERVING & MONITORING
-
-app.use(express.static(path.join(__dirname, 'dist')));
+// 5. TIC-TAC-TOE MULTIPLAYER (SOCKET.IO)
 // ==========================================
+
+io.on('connection', (socket) => {
+  console.log('🎮 User connected to Game:', socket.id);
+
+  socket.on('create_room', (room) => {
+    socket.join(room);
+    console.log(`🏠 Room created: ${room}`);
+  });
+
+  socket.on('join_room', (room) => {
+    const rooms = io.sockets.adapter.rooms;
+    if (rooms.has(room)) {
+      socket.join(room);
+      console.log(`🤝 User joined room: ${room}`);
+      
+      // Tell both players the match is starting
+      // Creator gets X, Joiner gets O
+      socket.to(room).emit('match_started', { symbol: 'X' }); 
+      socket.emit('match_started', { symbol: 'O' });
+    } else {
+      socket.emit('error', 'Room not found');
+    }
+  });
+
+  socket.on('make_move', (data) => {
+    // Broadcast the board and turn to the other person in the room
+    socket.to(data.room).emit('opponent_moved', {
+      board: data.board,
+      xIsNext: data.xIsNext
+    });
+  });
+
+  socket.on('disconnect', () => {
+    console.log('❌ User disconnected from Game');
+  });
+});
+
+// ==========================================
+// STATIC FILE SERVING & MONITORING
+app.use(express.static(path.join(__dirname, 'dist')));
 
 app.get('/favicon.ico', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'favicon.ico'));
 });
 
-app.get('/', (req, res) => {
+app.get('*', (req, res) => { // Use wildcard to support SPA refreshes
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => {
+// ✅ Use 'server.listen' instead of 'app.listen' to support Socket.io
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });

@@ -1,19 +1,21 @@
-// src/screens/GameScreen.js
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, TextInput, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, TextInput, ScrollView, ActivityIndicator, Platform, Alert } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors, spacing, radius, shadow } from '../utils/theme';
 import { PrimaryButton, Card, Row, Chip } from '../components/shared';
-import { useAudioPlayer } from 'expo-audio';
-import { VideoView, useVideoPlayer } from 'expo-video';
+// ✅ Import Socket.io Client
+import { io } from 'socket.io-client';
+
 const DIFFICULTIES = ['Easy', 'Medium', 'Hard'];
+// ✅ PASTE YOUR RENDER URL HERE
+const SOCKET_URL = 'https://lifeos-api-js9i.onrender.com';
+let socket;
 
 export default function GameScreen() {
   const [playMode, setPlayMode] = useState('ai'); 
   const [difficulty, setDifficulty] = useState('Medium');
   const [board, setBoard] = useState(Array(9).fill(null));
   
-  // ✅ New States for Alternating Turns
   const [startingPlayer, setStartingPlayer] = useState('X');
   const [xIsNext, setXIsNext] = useState(true);
   
@@ -21,6 +23,38 @@ export default function GameScreen() {
   const [joinCode, setJoinCode] = useState('');
   const [myCode, setMyCode] = useState('');
   const [scores, setScores] = useState({ X: 0, O: 0, draws: 0 });
+
+  // ✅ New State for Multiplayer Role
+  const [playerSymbol, setPlayerSymbol] = useState(null); // 'X' or 'O'
+
+  // ✅ SOCKET CONNECTION LOGIC
+  useEffect(() => {
+    if (playMode === 'multi') {
+      socket = io(SOCKET_URL);
+
+      socket.on('match_started', (data) => {
+        setBoard(Array(9).fill(null));
+        setXIsNext(true);
+        setPlayerSymbol(data.symbol);
+        setMultiState('playing');
+        if (data.symbol === 'O') setMyCode(joinCode); // Sync code for both
+      });
+
+      socket.on('opponent_moved', (data) => {
+        setBoard(data.board);
+        setXIsNext(data.xIsNext);
+      });
+
+      socket.on('opponent_left', () => {
+        Alert.alert("Opponent Left", "The other player disconnected.");
+        fullReset();
+      });
+
+      return () => {
+        socket.disconnect();
+      };
+    }
+  }, [playMode]);
 
   const calculateWinner = (squares) => {
     const lines = [[0,1,2], [3,4,5], [6,7,8], [0,3,6], [1,4,7], [2,5,8], [0,4,8], [2,4,6]];
@@ -34,7 +68,6 @@ export default function GameScreen() {
   const getAvailableMoves = (squares) => squares.map((val, idx) => val === null ? idx : null).filter(val => val !== null);
 
   useEffect(() => {
-    // If it is the AI's turn (xIsNext is false) and the game isn't over, make a move!
     if (playMode === 'ai' && !xIsNext && !calculateWinner(board)) {
       const timer = setTimeout(() => makeAIMove(), 600); 
       return () => clearTimeout(timer);
@@ -44,7 +77,6 @@ export default function GameScreen() {
   const makeAIMove = () => {
     const available = getAvailableMoves(board);
     if (available.length === 0) return;
-
     let move = available[Math.floor(Math.random() * available.length)]; 
 
     if (difficulty === 'Medium' || difficulty === 'Hard') {
@@ -64,7 +96,7 @@ export default function GameScreen() {
     const newBoard = [...board];
     newBoard[move] = 'O';
     setBoard(newBoard);
-    setXIsNext(true); // Passes turn back to user
+    setXIsNext(true);
   };
 
   const findBestMove = (player) => {
@@ -81,12 +113,29 @@ export default function GameScreen() {
 
   const handlePress = (index) => {
     if (board[index] || calculateWinner(board)) return;
+    
+    // ✅ Check if it's actually this player's turn in Multiplayer
+    if (playMode === 'multi') {
+      const currentTurnSymbol = xIsNext ? 'X' : 'O';
+      if (currentTurnSymbol !== playerSymbol) return;
+    }
+
     if (playMode === 'ai' && !xIsNext) return; 
 
     const newBoard = [...board];
     newBoard[index] = xIsNext ? 'X' : 'O';
     setBoard(newBoard);
-    setXIsNext(!xIsNext);
+    const nextTurn = !xIsNext;
+    setXIsNext(nextTurn);
+
+    // ✅ Emit move to server
+    if (playMode === 'multi') {
+      socket.emit('make_move', {
+        room: myCode || joinCode,
+        board: newBoard,
+        xIsNext: nextTurn
+      });
+    }
   };
 
   const fullReset = () => {
@@ -95,28 +144,37 @@ export default function GameScreen() {
     setXIsNext(true);
     setScores({ X: 0, O: 0, draws: 0 });
     setMultiState('menu');
+    setMyCode('');
+    setJoinCode('');
   };
 
-  // ✅ Alternates who starts the next round
   const nextRound = (winner, isDraw) => {
     if (winner) {
       setScores(s => ({ ...s, [winner]: s[winner] + 1 }));
     } else if (isDraw) {
       setScores(s => ({ ...s, draws: s.draws + 1 }));
     }
-    
-    // Swap the starting player
     const newStarter = startingPlayer === 'X' ? 'O' : 'X';
     setStartingPlayer(newStarter);
-    
     setBoard(Array(9).fill(null));
     setXIsNext(newStarter === 'X'); 
   };
 
+  // ✅ FIXED MULTIPLAYER ACTIONS
   const createMultiplayerMatch = () => {
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
     setMyCode(code);
     setMultiState('waiting');
+    socket.emit('create_room', code);
+  };
+
+  const handleJoinMatch = () => {
+    if (joinCode.length === 6) {
+      socket.emit('join_room', joinCode);
+      setMultiState('waiting');
+    } else {
+      Alert.alert("Invalid Code", "Please enter a 6-digit code.");
+    }
   };
 
   const winner = calculateWinner(board);
@@ -175,16 +233,22 @@ export default function GameScreen() {
             
             <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.md }}>
               <Text style={styles.lobbySub}>Have a code from a friend?</Text>
-              <Row style={{ gap: spacing.sm, marginTop: spacing.sm }}>
+              
+              {/* ✅ FIXED UI: Join Button and Input Alignment */}
+              <View style={styles.joinWrapper}>
                 <TextInput
-                  style={styles.codeInput} value={joinCode} onChangeText={setJoinCode}
-                  placeholder="Enter 6-digit code..." placeholderTextColor={colors.textMuted}
-                  autoCapitalize="characters" maxLength={6}
+                  style={styles.codeInput} 
+                  value={joinCode} 
+                  onChangeText={setJoinCode}
+                  placeholder="CODE..." 
+                  placeholderTextColor={colors.textMuted}
+                  autoCapitalize="characters" 
+                  maxLength={6}
                 />
-                <TouchableOpacity style={styles.joinBtn} onPress={() => setMultiState('waiting')}>
+                <TouchableOpacity style={styles.joinBtn} onPress={handleJoinMatch}>
                   <Text style={{ color: '#fff', fontWeight: '800' }}>Join</Text>
                 </TouchableOpacity>
-              </Row>
+              </View>
             </View>
           </Card>
         )}
@@ -235,7 +299,7 @@ export default function GameScreen() {
               ) : (
                 <Row style={{ justifyContent: 'center', gap: 8 }}>
                   <Text style={styles.statusText}>
-                    {xIsNext ? 'Your Turn (X)' : (playMode === 'ai' ? 'AI is thinking...' : 'Opponent Turn (O)')}
+                    {xIsNext ? (playerSymbol === 'X' ? 'Your Turn' : 'Opponent Turn') : (playerSymbol === 'O' ? 'Your Turn' : 'Opponent Turn')}
                   </Text>
                   {!xIsNext && playMode === 'ai' && <ActivityIndicator size="small" color={colors.secondary} />}
                 </Row>
@@ -292,18 +356,20 @@ const styles = StyleSheet.create({
 
   lobbyTitle: { fontSize: 18, fontWeight: '800', color: colors.textPrimary, marginBottom: spacing.md, textAlign: 'center' },
   lobbySub: { fontSize: 13, color: colors.textSecondary, fontWeight: '600' },
-  codeInput: { flex: 1, backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, color: colors.textPrimary, fontSize: 16, fontWeight: '800', padding: spacing.md, textAlign: 'center', letterSpacing: 2 },
-  joinBtn: { backgroundColor: colors.secondary, borderRadius: radius.md, paddingHorizontal: spacing.xl, justifyContent: 'center', alignItems: 'center' },
+  
+  // ✅ FIXED: Join Wrapper keeps everything aligned inside the box
+  joinWrapper: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm, height: 50 },
+  codeInput: { flex: 2, backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, color: colors.textPrimary, fontSize: 16, fontWeight: '800', paddingHorizontal: spacing.md, textAlign: 'center', letterSpacing: 2 },
+  joinBtn: { flex: 1, backgroundColor: colors.secondary, borderRadius: radius.md, justifyContent: 'center', alignItems: 'center' },
+  
   codeBox: { backgroundColor: colors.secondary + '20', paddingVertical: spacing.sm, paddingHorizontal: spacing.xl, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.secondary + '50' },
   codeText: { fontSize: 32, fontWeight: '900', color: colors.secondary, letterSpacing: 4 },
 
   gameCard: { alignItems: 'center', paddingVertical: spacing.xl },
-  
   scoreboard: { width: '100%', backgroundColor: colors.bgElevated, borderRadius: radius.lg, paddingVertical: spacing.sm, marginBottom: spacing.xl, borderWidth: 1, borderColor: colors.border },
   scoreCol: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   scoreLabel: { fontSize: 11, fontWeight: '800', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
   scoreValue: { fontSize: 24, fontWeight: '900', marginTop: 4 },
-
   statusBox: { marginBottom: spacing.lg, height: 30, justifyContent: 'center' },
   statusText: { fontSize: 18, fontWeight: '800', color: colors.textPrimary },
   grid: { width: 280, height: 280 },
