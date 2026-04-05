@@ -1,7 +1,10 @@
-// src/screens/HomeScreen.js
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert, Platform, ActivityIndicator, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert, Platform, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+// ✅ Added Linear Gradient and WebBrowser
+import { LinearGradient } from 'expo-linear-gradient';
+import * as WebBrowser from 'expo-web-browser';
+
 import { colors, spacing, radius, shadow } from '../utils/theme';
 import { Card, Row } from '../components/shared';
 import { Storage, KEYS } from '../utils/storage';
@@ -16,13 +19,11 @@ export default function HomeScreen({ navigation }) {
   const [userName, setUserName] = useState('User'); 
   const [isPro, setIsPro] = useState(false); 
   const [payLoading, setPayLoading] = useState(false);
-  const [syncLoading, setSyncLoading] = useState(true); // ✅ Production sync tracker
+  const [syncLoading, setSyncLoading] = useState(true); 
 
   useEffect(() => {
-    // Initial fast load from Storage
     loadDashboardData();
     calculateGreeting();
-    // Background sync from Server for "Mass Production" accuracy
     syncUserStatus();
   }, []);
 
@@ -33,7 +34,6 @@ export default function HomeScreen({ navigation }) {
     else setGreeting('Good evening');
   }
 
-  // ✅ Production Sync: Verifies Pro status with Render DB automatically
   async function syncUserStatus() {
     try {
       const userId = await Storage.get('lifeos_user_id');
@@ -46,7 +46,6 @@ export default function HomeScreen({ navigation }) {
       if (data) {
         setIsPro(data.isPro);
         setUserName(data.name);
-        // Update local storage so the next "Fast Load" is accurate
         await Storage.set('lifeos_is_pro', data.isPro);
         await Storage.set('lifeos_user_name', data.name);
       }
@@ -80,7 +79,7 @@ export default function HomeScreen({ navigation }) {
   const onRefresh = async () => {
     setRefreshing(true);
     await loadDashboardData();
-    await syncUserStatus(); // Re-verify with server on swipe-down
+    await syncUserStatus(); 
     setRefreshing(false);
   };
 
@@ -99,7 +98,6 @@ export default function HomeScreen({ navigation }) {
     setPayLoading(true);
 
     try {
-      // ✅ Production Note: Sending $3 USD. Paystack converts this to local currency (GHS/NGN) for the user.
       const response = await fetch('https://lifeos-api-js9i.onrender.com/api/paystack/initialize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -109,12 +107,14 @@ export default function HomeScreen({ navigation }) {
       const data = await response.json();
 
       if (data.authorization_url) {
-        const supported = await Linking.canOpenURL(data.authorization_url);
-        if (supported) {
-          await Linking.openURL(data.authorization_url);
-        } else {
-          Alert.alert("Error", "Your device cannot open the payment link.");
-        }
+        // ✅ Replaced Linking with sleek in-app WebBrowser
+        await WebBrowser.openBrowserAsync(data.authorization_url);
+        
+        // Let the user know to refresh after closing the checkout
+        Alert.alert(
+          "Checking Payment...", 
+          "If your payment was successful, pull down to refresh your dashboard and activate Pro!"
+        );
       } else {
         throw new Error("Payment link generation failed");
       }
@@ -136,7 +136,8 @@ export default function HomeScreen({ navigation }) {
   );
 
   return (
-    <View style={styles.container}>
+    // ✅ Replaced View with LinearGradient for a deep, sophisticated dark mode background
+    <LinearGradient colors={['#0F172A', '#000000']} style={styles.container}>
       <View style={styles.header}>
         <View>
           <Text style={styles.greeting}>{greeting}, {userName}</Text>
@@ -149,7 +150,7 @@ export default function HomeScreen({ navigation }) {
             await Storage.set('lifeos_user_id', '');
             await Storage.set('lifeos_user_name', '');
             await Storage.set('lifeos_user_email', '');
-            await Storage.set('lifeos_is_pro', false); // Clear pro status on logout
+            await Storage.set('lifeos_is_pro', false); 
             if (Platform.OS === 'web') {
               window.alert('Signed out successfully! Please refresh the page.');
             } else {
@@ -229,12 +230,13 @@ export default function HomeScreen({ navigation }) {
           </Card>
         </TouchableOpacity>
       </ScrollView>
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
+  // ✅ Removed background color so the gradient can shine through
+  container: { flex: 1 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.md, paddingTop: spacing.xxl, paddingBottom: spacing.lg },
   greeting: { fontSize: 24, fontWeight: '900', color: colors.textPrimary, letterSpacing: -0.5 },
   date: { fontSize: 14, color: colors.textSecondary, marginTop: 4, fontWeight: '500' },
