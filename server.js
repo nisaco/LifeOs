@@ -136,7 +136,7 @@ app.post('/api/paystack/initialize', async (req, res) => {
       {
         email: email,
         amount: amount * 100, 
-        currency: "USD", // ✅ Updated to USD as requested
+        currency: "GHS", // 
         metadata: {
           custom_fields: [{ display_name: "Service", variable_name: "service", value: "LifeOS Pro" }]
         }
