@@ -9,14 +9,15 @@ import { colors, spacing, radius, shadow } from '../utils/theme';
 import { sendMessage, getChatSessions, getChatHistory, deleteChatSession } from '../utils/gemini';
 import { format } from 'date-fns';
 
-// ✅ Added 'navigation' prop to handle routing to the Home/Pro screen
 export default function ChatScreen({ navigation }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(false);
   
-  // 🚀 THE MANUAL ENGINE
+  // ✅ NEW: State to track remaining chats for the banner
+  const [chatsLeft, setChatsLeft] = useState(null); 
+  
   const [extraPadding, setExtraPadding] = useState(0);
 
   const [currentSessionId, setCurrentSessionId] = useState(null);
@@ -30,11 +31,9 @@ export default function ChatScreen({ navigation }) {
   useEffect(() => {
     loadSidebar();
 
-    // We use 'keyboardDidShow' to get the EXACT pixel height of the keyboard
     const showSub = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
       (e) => {
-        // We push the UI up by the keyboard height MINUS a small offset for the tab bar
         setExtraPadding(e.endCoordinates.height - (Platform.OS === 'android' ? 60 : 0));
         setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
       }
@@ -80,18 +79,23 @@ export default function ChatScreen({ navigation }) {
     setLoading(true);
     
     try {
-      const { reply, newSessionId } = await sendMessage(newMessages, currentSessionId); 
+      // ✅ Now extracting chatsLeft from your gemini API call
+      const { reply, newSessionId, chatsLeft: serverChatsLeft } = await sendMessage(newMessages, currentSessionId); 
+      
       const assistantMsg = { role: 'assistant', content: reply, id: (Date.now() + 1).toString(), time: new Date().toISOString() };
       setMessages([...newMessages, assistantMsg]);
+      
+      if (serverChatsLeft !== undefined) {
+        setChatsLeft(serverChatsLeft);
+      }
+
       if (!currentSessionId) {
         setCurrentSessionId(newSessionId);
         loadSidebar(); 
       }
     } catch (err) {
-      // ✅ If the message fails, remove it from the screen so it doesn't look like it went through
       setMessages(prev => prev.slice(0, -1));
 
-      // ✅ Trigger the beautiful Pro prompt if the limit is hit
       if (err.message && err.message.includes('LIMIT_REACHED')) {
         Alert.alert(
           "Hourly Limit Reached ⏳",
@@ -126,10 +130,8 @@ export default function ChatScreen({ navigation }) {
   const suggestedPrompts = ['Help me plan my week', 'Explain compound interest', 'Give me a 5-min workout'];
 
   return (
-    // 🚀 STYLES.CONTAINER NOW HAS DYNAMIC PADDING
     <View style={[styles.container, { paddingBottom: extraPadding }]}>
       
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => { loadSidebar(); setSidebarVisible(true); }} style={styles.iconBtn}>
           <Feather name="menu" size={20} color={colors.textPrimary} />
@@ -142,6 +144,14 @@ export default function ChatScreen({ navigation }) {
           <Feather name="edit" size={20} color={colors.primary} />
         </TouchableOpacity>
       </View>
+
+      {/* ✅ The Hourly Limit Banner */}
+      {chatsLeft !== null && chatsLeft !== 'Unlimited' && (
+        <View style={styles.limitBanner}>
+          <Feather name="zap" size={14} color="#FFD700" style={{ marginRight: 6 }} />
+          <Text style={styles.limitText}>{chatsLeft} free messages left this hour</Text>
+        </View>
+      )}
 
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={{ flex: 1 }}>
@@ -171,15 +181,17 @@ export default function ChatScreen({ navigation }) {
               contentContainerStyle={styles.messagesList}
               onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
               renderItem={({ item }) => (
-                <View style={[styles.bubble, item.role === 'user' ? styles.userBubble : styles.aiBubble]}>
+                // ✅ Applying the iMessage wrapper
+                <View style={[styles.bubbleWrapper, item.role === 'user' ? { alignItems: 'flex-end' } : { alignItems: 'flex-start' }]}>
                   {!!(item.role === 'assistant') && (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-                      <Feather name="cpu" size={12} color={colors.primary} style={{ marginRight: 4 }} />
-                      <Text style={styles.bubbleName}>LifeOS AI</Text>
-                    </View>
+                    <Text style={styles.bubbleName}>LifeOS AI</Text>
                   )}
-                  <Text style={[styles.bubbleText, item.role === 'user' && styles.userBubbleText]}>{item.content}</Text>
-                  <Text style={[styles.bubbleTime, item.role === 'user' && { color: 'rgba(255,255,255,0.7)' }]}>
+                  
+                  <View style={[styles.bubble, item.role === 'user' ? styles.userBubble : styles.aiBubble]}>
+                    <Text style={[styles.bubbleText, item.role === 'user' && styles.userBubbleText]}>{item.content}</Text>
+                  </View>
+                  
+                  <Text style={styles.bubbleTime}>
                     {item.time ? format(new Date(item.time), 'h:mm a') : 'Now'}
                   </Text>
                 </View>
@@ -196,18 +208,16 @@ export default function ChatScreen({ navigation }) {
         </View>
       </TouchableWithoutFeedback>
 
-      {/* Input Row stays at the bottom of the "Padded" container */}
       <View style={styles.inputRow}>
         <TextInput
           style={styles.input} value={input} onChangeText={setInput}
-          placeholder="Message AI..." placeholderTextColor={colors.textMuted} multiline maxLength={1000}
+          placeholder="iMessage AI..." placeholderTextColor={colors.textMuted} multiline maxLength={1000}
         />
         <TouchableOpacity onPress={handleSend} style={[styles.sendBtn, (!input.trim() || loading) && styles.sendBtnDisabled]} disabled={!input.trim() || loading}>
           <Feather name="arrow-up" size={20} color="#fff" />
         </TouchableOpacity>
       </View>
 
-      {/* Modals remain below */}
       <Modal visible={sidebarVisible} transparent animationType="fade">
         <View style={styles.sidebarOverlay}>
           <View style={styles.sidebarContent}>
@@ -257,6 +267,11 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 18, fontWeight: '800', color: colors.textPrimary },
   headerSub: { fontSize: 12, color: colors.primary, fontWeight: '600' },
   iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.bgCard, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
+  
+  // ✅ Banner Styles
+  limitBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#1A1A1A', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border },
+  limitText: { fontSize: 12, fontWeight: '700', color: '#AAAAAA' },
+
   emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   emptyLogoBg: { width: 80, height: 80, borderRadius: 40, backgroundColor: colors.bgCard, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md, borderWidth: 1, borderColor: colors.border },
   emptyTitle: { fontSize: 24, fontWeight: '800', color: colors.textPrimary, marginBottom: spacing.xs },
@@ -265,19 +280,47 @@ const styles = StyleSheet.create({
   promptChip: { backgroundColor: colors.bgCard, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md },
   promptText: { color: colors.textSecondary, fontSize: 14, fontWeight: '600' },
   messagesList: { padding: spacing.md, paddingBottom: spacing.xl },
-  bubble: { maxWidth: '85%', borderRadius: radius.xl, padding: spacing.md, marginBottom: spacing.sm },
-  aiBubble: { alignSelf: 'flex-start', backgroundColor: colors.bgCard, borderWidth: 1, borderColor: colors.border },
-  userBubble: { alignSelf: 'flex-end', backgroundColor: colors.primary },
-  bubbleName: { fontSize: 11, fontWeight: '800', color: colors.primary, textTransform: 'uppercase', letterSpacing: 0.5 },
-  bubbleText: { fontSize: 15, color: colors.textPrimary, lineHeight: 22 },
-  userBubbleText: { color: '#fff', fontWeight: '500' },
-  bubbleTime: { fontSize: 11, color: colors.textMuted, marginTop: 4, alignSelf: 'flex-end' },
+  
+  // ✅ NEW iMESSAGE BUBBLE STYLES
+  bubbleWrapper: { marginBottom: spacing.md, width: '100%' },
+  bubble: { 
+    maxWidth: '80%', 
+    paddingHorizontal: 16, 
+    paddingVertical: 12, 
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.5,
+    elevation: 2
+  },
+  aiBubble: { 
+    backgroundColor: '#262628', // Deep sleek gray 
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    borderBottomRightRadius: 20,
+    borderBottomLeftRadius: 4, // 👈 The "Tail" effect
+  },
+  userBubble: { 
+    backgroundColor: '#007AFF', // Authentic iMessage Blue
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 4, // 👈 The "Tail" effect
+  },
+  bubbleName: { fontSize: 11, fontWeight: '800', color: colors.textMuted, marginLeft: 16, marginBottom: 4 },
+  bubbleText: { fontSize: 16, color: '#E5E5EA', lineHeight: 22 }, // Crisp off-white text
+  userBubbleText: { color: '#FFFFFF' },
+  bubbleTime: { fontSize: 10, color: colors.textMuted, marginTop: 4, paddingHorizontal: 4 },
+  
   typingIndicator: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingHorizontal: spacing.md, paddingBottom: spacing.xs },
   typingText: { fontSize: 13, color: colors.textSecondary, fontWeight: '600' },
-  inputRow: { flexDirection: 'row', alignItems: 'flex-end', padding: spacing.sm, gap: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.bg },
-  input: { flex: 1, backgroundColor: colors.bgCard, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.border, color: colors.textPrimary, fontSize: 15, paddingHorizontal: spacing.md, paddingVertical: 14, maxHeight: 120 },
-  sendBtn: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
-  sendBtnDisabled: { backgroundColor: colors.border },
+  
+  // ✅ Redesigned Input Row (More like iMessage)
+  inputRow: { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.bg },
+  input: { flex: 1, backgroundColor: '#1A1A1A', borderRadius: 24, borderWidth: 1, borderColor: colors.border, color: colors.textPrimary, fontSize: 16, paddingHorizontal: 18, paddingTop: 14, paddingBottom: 14, maxHeight: 120, marginRight: 10 },
+  sendBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#007AFF', alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
+  sendBtnDisabled: { backgroundColor: '#3A3A3C' },
+  
   sidebarOverlay: { flex: 1, flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.6)' },
   sidebarContent: { width: '75%', maxWidth: 320, backgroundColor: colors.bgElevated, height: '100%', borderRightWidth: 1, borderRightColor: colors.border },
   sidebarHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.md, paddingTop: 50, paddingBottom: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },

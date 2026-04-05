@@ -20,7 +20,7 @@ export async function sendMessage(messages, sessionId) {
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error);
-    return { reply: data.reply, newSessionId: data.sessionId };
+    return { reply: data.reply, newSessionId: data.sessionId, chatsLeft: data.chatsLeft };
   } catch (error) { throw error; }
 }
 
