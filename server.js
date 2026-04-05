@@ -190,6 +190,34 @@ app.post('/api/chat', async (req, res) => {
       return res.status(400).json({ error: "Missing userId or messages" });
     }
 
+// 🔒 1. FIND THE USER & CHECK PRO LIMITS (20 Per Hour Logic)
+    const user = await User.findOne({ username: userId.toLowerCase().trim() });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const now = new Date();
+    const lastReset = user.lastChatReset || new Date(0);
+    
+    // Check if we are in the same HOUR and same DAY
+    const isSameHour = now.getFullYear() === lastReset.getFullYear() &&
+                       now.getMonth() === lastReset.getMonth() &&
+                       now.getDate() === lastReset.getDate() &&
+                       now.getHours() === lastReset.getHours();
+
+    if (!isSameHour) {
+      user.dailyChatCount = 0; // We reuse this field as 'hourlyChatCount'
+      user.lastChatReset = now;
+    }
+
+    if (!user.isPro && user.dailyChatCount >= 20) {
+      await user.save(); 
+      // 👇 We send "LIMIT_REACHED" so the frontend knows exactly what happened
+      return res.status(403).json({ 
+        error: "LIMIT_REACHED", 
+        message: "You've used your 20 free messages for this hour." 
+      });
+    }
+
+    // 🧠 2. IF THEY PASS, CALL GEMINI AI
     const activeSessionId = sessionId || Date.now().toString();
     const chatTitle = messages[0].content.substring(0, 30) + (messages[0].content.length > 30 ? '...' : '');
 
@@ -205,6 +233,7 @@ app.post('/api/chat', async (req, res) => {
     const result = await chatSession.sendMessage(latestMessage);
     const aiResponseText = result.response.text();
 
+    // 💾 3. SAVE CHAT HISTORY
     await Chat.findOneAndUpdate(
       { userId: userId, sessionId: activeSessionId },
       { 
@@ -221,7 +250,13 @@ app.post('/api/chat', async (req, res) => {
       { upsert: true, returnDocument: 'after' }
     );
 
-    res.json({ reply: aiResponseText, sessionId: activeSessionId });
+    // 📈 4. INCREMENT CHAT COUNT & SAVE
+    if (!user.isPro) {
+      user.dailyChatCount += 1;
+    }
+    await user.save();
+
+    res.json({ reply: aiResponseText, sessionId: activeSessionId, chatsLeft: user.isPro ? 'Unlimited' : 5 - user.dailyChatCount });
   } catch (error) {
     console.error("Server Error:", error);
     res.status(500).json({ error: "Failed to process chat." });

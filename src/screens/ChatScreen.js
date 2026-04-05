@@ -9,7 +9,8 @@ import { colors, spacing, radius, shadow } from '../utils/theme';
 import { sendMessage, getChatSessions, getChatHistory, deleteChatSession } from '../utils/gemini';
 import { format } from 'date-fns';
 
-export default function ChatScreen() {
+// ✅ Added 'navigation' prop to handle routing to the Home/Pro screen
+export default function ChatScreen({ navigation }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -77,6 +78,7 @@ export default function ChatScreen() {
     setMessages(newMessages);
     setInput('');
     setLoading(true);
+    
     try {
       const { reply, newSessionId } = await sendMessage(newMessages, currentSessionId); 
       const assistantMsg = { role: 'assistant', content: reply, id: (Date.now() + 1).toString(), time: new Date().toISOString() };
@@ -86,7 +88,22 @@ export default function ChatScreen() {
         loadSidebar(); 
       }
     } catch (err) {
-      Alert.alert('Error', err.message || 'Failed to get response from server.');
+      // ✅ If the message fails, remove it from the screen so it doesn't look like it went through
+      setMessages(prev => prev.slice(0, -1));
+
+      // ✅ Trigger the beautiful Pro prompt if the limit is hit
+      if (err.message && err.message.includes('LIMIT_REACHED')) {
+        Alert.alert(
+          "Hourly Limit Reached ⏳",
+          "You've used your 20 free AI messages for this hour. Upgrade to Pro for unlimited access!",
+          [
+            { text: "Wait an hour", style: "cancel" },
+            { text: "Upgrade Now", onPress: () => navigation.navigate('Home') }
+          ]
+        );
+      } else {
+        Alert.alert('Error', err.message || 'Failed to get response from server.');
+      }
     } finally {
       setLoading(false);
     }
