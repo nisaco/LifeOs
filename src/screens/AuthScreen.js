@@ -133,18 +133,91 @@ export default function AuthScreen({ onComplete }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg, justifyContent: 'center', padding: spacing.lg },
-  card: { backgroundColor: colors.bgCard, borderRadius: radius.xxl, padding: spacing.xl, borderWidth: 1, borderColor: colors.border, ...shadow.md },
-  iconContainer: { alignSelf: 'center', marginBottom: spacing.lg, width: 70, height: 70, borderRadius: 35, backgroundColor: colors.primary + '15', alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 28, fontWeight: '900', color: colors.textPrimary, textAlign: 'center', marginBottom: 4 },
-  subtitle: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.xl },
-  inputGroup: { gap: spacing.md, marginBottom: spacing.xl },
-  inputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.bg, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.md },
-  inputIcon: { marginRight: spacing.sm },
-  input: { flex: 1, height: 50, color: colors.textPrimary, fontSize: 16 },
-  button: { backgroundColor: colors.primary, height: 55, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', ...shadow.sm },
-  buttonText: { color: '#000', fontSize: 18, fontWeight: '800' },
-  toggle: { marginTop: spacing.lg, alignItems: 'center' },
-  toggleText: { color: colors.textSecondary, fontSize: 14 },
-  toggleLink: { color: colors.primary, fontWeight: '800' }
+  container: { 
+    flex: 1, 
+    backgroundColor: colors.bg, 
+    justifyContent: 'center', 
+    padding: spacing.lg 
+  },
+  card: { 
+    backgroundColor: colors.bgCard, 
+    borderRadius: radius.xxl, 
+    padding: spacing.xl, 
+    // Removed border here as requested
+    borderWidth: 0, 
+    ...shadow.md 
+  },
+  iconContainer: { 
+    alignSelf: 'center', 
+    marginBottom: spacing.lg, 
+    width: 70, 
+    height: 70, 
+    borderRadius: 35, 
+    backgroundColor: colors.primary + '15', 
+    alignItems: 'center', 
+    justifyContent: 'center' 
+  },
+  title: { 
+    fontSize: 28, 
+    fontWeight: '900', 
+    color: colors.textPrimary, 
+    textAlign: 'center', 
+    marginBottom: 4 
+  },
+  subtitle: { 
+    fontSize: 14, 
+    color: colors.textSecondary, 
+    textAlign: 'center', 
+    marginBottom: spacing.xl 
+  },
+  inputGroup: { 
+    gap: spacing.md, 
+    marginBottom: spacing.xl 
+  },
+  inputWrapper: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    // ✅ No outline/border
+    borderWidth: 0, 
+    // ✅ Subtle dark background to define the field without a line
+    backgroundColor: colors.bg, 
+    borderRadius: radius.lg, 
+    paddingHorizontal: spacing.md 
+  },
+  inputIcon: { 
+    marginRight: spacing.sm 
+  },
+  input: { 
+    flex: 1, 
+    height: 50, 
+    color: colors.textPrimary, 
+    fontSize: 16,
+    // ✅ Specifically for Web/Chrome to remove the "focus" blue outline
+    outlineStyle: 'none' 
+  },
+  button: { 
+    backgroundColor: colors.primary, 
+    height: 55, 
+    borderRadius: radius.lg, 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    ...shadow.sm 
+  },
+  buttonText: { 
+    color: '#000', 
+    fontSize: 18, 
+    fontWeight: '800' 
+  },
+  toggle: { 
+    marginTop: spacing.lg, 
+    alignItems: 'center' 
+  },
+  toggleText: { 
+    color: colors.textSecondary, 
+    fontSize: 14 
+  },
+  toggleLink: { 
+    color: colors.primary, 
+    fontWeight: '800' 
+  }
 });
