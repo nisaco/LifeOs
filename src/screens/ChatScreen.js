@@ -1,4 +1,3 @@
-// src/screens/ChatScreen.js
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, FlatList,
@@ -111,8 +110,12 @@ export default function ChatScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Main Chat Area */}
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
+      {/* ✅ Fixed: Main Chat Area with proper Keyboard Handling */}
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }} 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      >
         {initialLoading ? (
           <View style={styles.emptyContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
@@ -137,14 +140,12 @@ export default function ChatScreen() {
           <FlatList
             ref={listRef} 
             data={messages} 
-            // ✅ Fix 1: Properly fallback to _id or random string so FlatList never crashes
             keyExtractor={(m, index) => m._id || m.id || index.toString()} 
             contentContainerStyle={styles.messagesList}
             onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
             renderItem={({ item }) => (
               <View style={[styles.bubble, item.role === 'user' ? styles.userBubble : styles.aiBubble]}>
                 
-                {/* ✅ Fix 2: Strict boolean checking with !! prevents "Unexpected text node" in Web */}
                 {!!(item.role === 'assistant') && (
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
                     <Feather name="cpu" size={12} color={colors.primary} style={{ marginRight: 4 }} />
@@ -168,6 +169,7 @@ export default function ChatScreen() {
           </View>
         )}
 
+        {/* This row stays visible above the keyboard */}
         <View style={styles.inputRow}>
           <TextInput
             style={styles.input} value={input} onChangeText={setInput}
