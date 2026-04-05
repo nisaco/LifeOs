@@ -2,7 +2,7 @@
 import { Storage } from './storage';
 
 // ⚠️ PASTE YOUR RENDER URL HERE (No trailing slash)
-const LIVE_BACKEND_URL = 'https://lifeos-api-js9i.onrender.com/api';
+const LIVE_BACKEND_URL = '/api';
 
 // Dynamically fetch the user ID created during Signup
 async function getUserId() {
