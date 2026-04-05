@@ -10,8 +10,9 @@ export default function SignupScreen({ onComplete }) {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [focusedInput, setFocusedInput] = useState(null);
 
- async function handleSignup() {
+  async function handleSignup() {
     if (!name.trim() || !email.trim()) {
       setError('Please fill in your name and email.');
       return;
@@ -21,7 +22,6 @@ export default function SignupScreen({ onComplete }) {
     setError('');
 
     try {
-      // ✅ Send data securely to your MongoDB backend
       const response = await fetch('https://lifeos-api-js9i.onrender.com/api/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -34,12 +34,10 @@ export default function SignupScreen({ onComplete }) {
         throw new Error(data.error || 'Failed to connect to server.');
       }
 
-      // ✅ Save the real, database-verified userId to the phone!
       await Storage.set('lifeos_user_id', data.userId);
       await Storage.set('lifeos_user_name', data.name);
       await Storage.set('lifeos_user_email', email.trim().toLowerCase());
 
-      // Bypass this screen forever
       onComplete();
     } catch (err) {
       setError(err.message || 'Check your internet connection and try again.');
@@ -61,26 +59,30 @@ export default function SignupScreen({ onComplete }) {
         <View style={styles.formContainer}>
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
           
-          <View style={styles.inputWrapper}>
-            <Feather name="user" size={20} color={colors.textMuted} style={styles.inputIcon} />
+          <View style={[styles.inputWrapper, focusedInput === 'name' && { borderColor: colors.primary }]}>
+            <Feather name="user" size={20} color={focusedInput === 'name' ? colors.primary : colors.textMuted} style={styles.inputIcon} />
             <TextInput
-              style={styles.input}
+              style={[styles.input, { outlineStyle: 'none' }]}
               placeholder="First Name"
               placeholderTextColor={colors.textMuted}
               value={name}
               onChangeText={setName}
+              onFocus={() => setFocusedInput('name')}
+              onBlur={() => setFocusedInput(null)}
               autoCapitalize="words"
             />
           </View>
 
-          <View style={styles.inputWrapper}>
-            <Feather name="mail" size={20} color={colors.textMuted} style={styles.inputIcon} />
+          <View style={[styles.inputWrapper, focusedInput === 'email' && { borderColor: colors.primary }]}>
+            <Feather name="mail" size={20} color={focusedInput === 'email' ? colors.primary : colors.textMuted} style={styles.inputIcon} />
             <TextInput
-              style={styles.input}
+              style={[styles.input, { outlineStyle: 'none' }]}
               placeholder="Email Address"
               placeholderTextColor={colors.textMuted}
               value={email}
               onChangeText={setEmail}
+              onFocus={() => setFocusedInput('email')}
+              onBlur={() => setFocusedInput(null)}
               keyboardType="email-address"
               autoCapitalize="none"
             />
@@ -114,10 +116,11 @@ const styles = StyleSheet.create({
   title: { fontSize: 28, fontWeight: '900', color: colors.textPrimary, letterSpacing: -0.5, marginBottom: spacing.xs },
   subtitle: { fontSize: 15, color: colors.textSecondary, marginBottom: spacing.xxl },
   
-  formContainer: { width: '100%', maxWidth: 360, backgroundColor: colors.bgElevated, padding: spacing.xl, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.border, ...shadow.sm },
+  formContainer: { width: '100%', maxWidth: 360, backgroundColor: colors.bgElevated, padding: spacing.xl, borderRadius: radius.xl, ...shadow.sm },
   errorText: { color: colors.danger, fontSize: 13, fontWeight: '600', marginBottom: spacing.md, textAlign: 'center' },
   
-  inputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.bgCard, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, marginBottom: spacing.lg, paddingHorizontal: spacing.md },
+  // ✅ Removed outer border to keep it clean, added bottom border logic
+  inputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'transparent', borderBottomWidth: 1.5, borderColor: colors.border, marginBottom: spacing.lg, paddingHorizontal: 4 },
   inputIcon: { marginRight: spacing.sm },
   input: { flex: 1, color: colors.textPrimary, fontSize: 16, fontWeight: '600', paddingVertical: 16 },
   

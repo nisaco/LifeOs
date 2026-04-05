@@ -10,16 +10,17 @@ import { Storage, KEYS } from '../utils/storage';
 import { Card, PrimaryButton, EmptyState, Row, Spacer } from '../components/shared';
 import { format, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 
-const CATEGORIES = ['Food', 'Transport', 'Bills', 'Health', 'Shopping', 'Entertainment', 'Income', 'Other'];
-const CATEGORY_ICONS = { Food: 'coffee', Transport: 'navigation', Bills: 'file-text', Health: 'heart', Shopping: 'shopping-bag', Entertainment: 'tv', Income: 'briefcase', Other: 'dollar-sign' };
+// Split categories for smart filtering
+const EXPENSE_CATEGORIES = ['Food', 'Transport', 'Bills', 'Health', 'Shopping', 'Entertainment', 'Other'];
+const INCOME_CATEGORIES = ['Salary', 'Business', 'Freelance', 'Gift', 'Investment'];
+const CATEGORY_ICONS = { Food: 'coffee', Transport: 'navigation', Bills: 'file-text', Health: 'heart', Shopping: 'shopping-bag', Entertainment: 'tv', Salary: 'briefcase', Business: 'activity', Freelance: 'code', Gift: 'gift', Investment: 'trending-up', Other: 'dollar-sign' };
 
-// ✅ Added global currency options
 const CURRENCIES = ['$', '₵', '£', '€', '₦', '¥', '₹'];
 
 export default function BudgetScreen() {
   const [entries, setEntries] = useState([]);
   const [monthlyLimit, setMonthlyLimit] = useState(1000);
-  const [currency, setCurrency] = useState('₵'); // Defaulting to Cedi for you!
+  const [currency, setCurrency] = useState('₵'); 
   
   const [showModal, setShowModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -33,17 +34,35 @@ export default function BudgetScreen() {
   async function loadData() {
     const data = await Storage.get(KEYS.BUDGET_ENTRIES) || [];
     const limit = await Storage.get(KEYS.BUDGET_LIMIT) || 1000;
-    // Using a direct string key so you don't have to update your storage.js file!
-    const savedCurrency = await Storage.get('lifeos_budget_currency') || '$'; 
+    const savedCurrency = await Storage.get('lifeos_budget_currency') || '₵'; 
     
     setEntries(data);
     setMonthlyLimit(limit);
     setCurrency(savedCurrency);
   }
 
+  // ✅ SMART BUDGET ALERT LOGIC
+  const checkBudgetStatus = (newTotalSpent) => {
+    const percentage = (newTotalSpent / monthlyLimit) * 100;
+    if (percentage >= 100) {
+      Alert.alert("Limit Reached! 🛑", `You've spent ${currency}${newTotalSpent.toFixed(2)}. You have officially reached your ${currency}${monthlyLimit} limit!`);
+    } else if (percentage >= 80) {
+      Alert.alert("Budget Warning ⚠️", `You've used ${Math.round(percentage)}% of your monthly budget. Be careful!`);
+    }
+  };
+
   async function saveEntry() {
     const amt = parseFloat(form.amount);
     if (!amt || isNaN(amt)) return;
+    
+    // Check for alerts before saving
+    if (form.type === 'expense') {
+      const currentMonthSpent = monthEntries
+        .filter(e => e.type === 'expense')
+        .reduce((s, e) => s + e.amount, 0);
+      checkBudgetStatus(currentMonthSpent + amt);
+    }
+
     const entry = { ...form, amount: amt, id: Date.now().toString(), date: new Date().toISOString() };
     const updated = [entry, ...entries];
     await Storage.set(KEYS.BUDGET_ENTRIES, updated);
@@ -69,7 +88,6 @@ export default function BudgetScreen() {
     }
   }
 
-  // ✅ New unified Settings Save function
   async function saveSettings() {
     const val = parseFloat(limitInput);
     if (!isNaN(val) && val > 0) {
@@ -79,7 +97,6 @@ export default function BudgetScreen() {
     
     await Storage.set('lifeos_budget_currency', tempCurrency);
     setCurrency(tempCurrency);
-    
     setShowSettingsModal(false);
   }
 
@@ -110,7 +127,6 @@ export default function BudgetScreen() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Summary cards (✅ Currency Dynamic) */}
         <View style={styles.summaryRow}>
           <View style={[styles.summaryCard, { borderColor: colors.danger + '40' }]}>
             <Text style={styles.summaryLabel}>Spent</Text>
@@ -126,7 +142,6 @@ export default function BudgetScreen() {
           </View>
         </View>
 
-        {/* Progress bar (✅ Currency Dynamic) */}
         <Card style={{ marginHorizontal: spacing.md }}>
           <Row style={{ justifyContent: 'space-between', marginBottom: spacing.sm }}>
             <Text style={styles.progressLabel}>Monthly limit</Text>
@@ -140,13 +155,11 @@ export default function BudgetScreen() {
           {progress > 0.9 && <Text style={styles.warningText}>⚠️ Near budget limit!</Text>}
         </Card>
 
-        {/* Add button */}
         <TouchableOpacity onPress={() => setShowModal(true)} style={styles.addEntryBtn}>
           <Feather name="plus" size={18} color={colors.budget} style={{ marginRight: 6 }} />
           <Text style={styles.addEntryBtnText}>Add Transaction</Text>
         </TouchableOpacity>
 
-        {/* Transaction list (✅ Currency Dynamic) */}
         <Text style={styles.listLabel}>Transactions</Text>
         {entries.length === 0
           ? <EmptyState icon={<Feather name="pie-chart" size={36} color={colors.textMuted} />} title="No transactions yet" subtitle="Add income or expenses to track your budget" />
@@ -175,14 +188,13 @@ export default function BudgetScreen() {
         <Spacer size={spacing.xxl} />
       </ScrollView>
 
-      {/* Add Transaction Modal */}
       <Modal visible={showModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>New Transaction</Text>
             <Row style={{ gap: spacing.sm, marginBottom: spacing.md }}>
               {['expense', 'income'].map(t => (
-                <TouchableOpacity key={t} onPress={() => setForm(f => ({ ...f, type: t }))}
+                <TouchableOpacity key={t} onPress={() => setForm(f => ({ ...f, type: t, category: t === 'income' ? 'Salary' : 'Food' }))}
                   style={[styles.typeBtn, form.type === t && { backgroundColor: t === 'income' ? colors.health : colors.danger, borderColor: 'transparent' }]}>
                   <Text style={[styles.typeBtnText, form.type === t && { color: '#fff' }]}>{t === 'income' ? 'Income' : 'Expense'}</Text>
                 </TouchableOpacity>
@@ -192,7 +204,7 @@ export default function BudgetScreen() {
             <View style={styles.inputWrapper}>
               <Text style={styles.currencyPrefix}>{currency}</Text>
               <TextInput
-                style={styles.amountInput}
+                style={[styles.amountInput, { outlineStyle: 'none' }]}
                 value={form.amount}
                 onChangeText={v => setForm(f => ({ ...f, amount: v }))}
                 placeholder="0.00"
@@ -204,20 +216,21 @@ export default function BudgetScreen() {
 
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: spacing.md }}>
               <Row style={{ gap: spacing.xs }}>
-                {CATEGORIES.map(c => (
+                {/* ✅ DYNAMIC CATEGORIES BASED ON TYPE */}
+                {(form.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map(c => (
                   <TouchableOpacity
                     key={c}
                     onPress={() => setForm(f => ({ ...f, category: c }))}
                     style={[styles.catChip, form.category === c && { backgroundColor: colors.budget + '25', borderColor: colors.budget }]}
                   >
-                    <Feather name={CATEGORY_ICONS[c]} size={16} color={form.category === c ? colors.budget : colors.textSecondary} style={{ marginRight: 6 }} />
+                    <Feather name={CATEGORY_ICONS[c] || 'tag'} size={16} color={form.category === c ? colors.budget : colors.textSecondary} style={{ marginRight: 6 }} />
                     <Text style={[styles.catChipText, form.category === c && { color: colors.budget }]}>{c}</Text>
                   </TouchableOpacity>
                 ))}
               </Row>
             </ScrollView>
             <TextInput
-              style={styles.modalInput}
+              style={[styles.modalInput, { outlineStyle: 'none' }]}
               value={form.note}
               onChangeText={v => setForm(f => ({ ...f, note: v }))}
               placeholder="Note (optional)"
@@ -233,7 +246,6 @@ export default function BudgetScreen() {
         </View>
       </Modal>
 
-      {/* ✅ New Settings Modal (Limit & Currency) */}
       <Modal visible={showSettingsModal} transparent animationType="fade">
         <View style={styles.modalOverlayCentered}>
           <View style={[styles.modalCard, { borderRadius: radius.xl, width: '90%', maxWidth: 400 }]}>
@@ -246,7 +258,7 @@ export default function BudgetScreen() {
 
             <Text style={styles.settingsLabel}>Monthly Limit</Text>
             <TextInput
-              style={styles.settingsInput}
+              style={[styles.settingsInput, { outlineStyle: 'none' }]}
               value={limitInput}
               onChangeText={setLimitInput}
               keyboardType="decimal-pad"
@@ -279,47 +291,36 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 28, fontWeight: '900', color: colors.textPrimary },
   headerSub: { fontSize: 14, color: colors.textSecondary, marginTop: 2, fontWeight: '500' },
   settingsBtn: { width: 44, height: 44, backgroundColor: colors.bgCard, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
-  
   summaryRow: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.md, marginVertical: spacing.md },
   summaryCard: { flex: 1, backgroundColor: colors.bgCard, borderRadius: radius.xl, borderWidth: 1, padding: spacing.md, alignItems: 'center', ...shadow.sm },
   summaryLabel: { fontSize: 11, color: colors.textMuted, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 },
   summaryAmount: { fontSize: 17, fontWeight: '900', letterSpacing: -0.5 },
-  
   progressLabel: { fontSize: 14, color: colors.textSecondary, fontWeight: '600' },
   progressTrack: { height: 10, backgroundColor: colors.bgElevated, borderRadius: radius.full, overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: radius.full },
   warningText: { fontSize: 13, color: colors.danger, marginTop: spacing.xs, fontWeight: '700' },
-  
   addEntryBtn: { flexDirection: 'row', margin: spacing.md, backgroundColor: colors.budget + '15', borderRadius: radius.full, padding: spacing.md, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.budget + '40' },
   addEntryBtnText: { color: colors.budget, fontWeight: '800', fontSize: 15 },
-  
   listLabel: { fontSize: 13, fontWeight: '800', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1.5, marginHorizontal: spacing.md, marginBottom: spacing.md, marginTop: spacing.sm },
   iconCircle: { width: 48, height: 48, borderRadius: 16, backgroundColor: colors.bgElevated, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
   entryCategory: { fontSize: 16, fontWeight: '800', color: colors.textPrimary },
   entryNote: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
   entryDate: { fontSize: 12, color: colors.textMuted, marginTop: 4, fontWeight: '500' },
   entryAmount: { fontSize: 17, fontWeight: '900', letterSpacing: -0.5 },
-  
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'flex-end' },
   modalOverlayCentered: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center' },
   modalCard: { backgroundColor: colors.bgElevated, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, padding: spacing.xl, paddingBottom: spacing.xxl },
   modalTitle: { fontSize: 22, fontWeight: '900', color: colors.textPrimary, marginBottom: spacing.sm },
-  
   typeBtn: { flex: 1, borderRadius: radius.full, paddingVertical: 14, alignItems: 'center', borderWidth: 1, borderColor: colors.border, backgroundColor: colors.bgCard },
   typeBtnText: { fontWeight: '800', fontSize: 14, color: colors.textSecondary },
-  
   inputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.bgCard, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.border, marginBottom: spacing.lg, paddingHorizontal: spacing.lg },
   currencyPrefix: { fontSize: 28, fontWeight: '900', color: colors.textMuted, marginRight: 8 },
   amountInput: { flex: 1, color: colors.textPrimary, fontSize: 32, fontWeight: '900', paddingVertical: spacing.lg },
-  
   catChip: { flexDirection: 'row', alignItems: 'center', borderRadius: radius.full, paddingVertical: 10, paddingHorizontal: 16, borderWidth: 1.5, borderColor: colors.border, marginRight: spacing.xs },
   catChipText: { fontSize: 14, color: colors.textSecondary, fontWeight: '700' },
   modalInput: { backgroundColor: colors.bgCard, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.border, color: colors.textPrimary, fontSize: 16, padding: spacing.md, marginBottom: spacing.md },
-  
   modalBtn: { flex: 1, borderRadius: radius.full, paddingVertical: 16, alignItems: 'center', justifyContent: 'center' },
   cancelBtn: { backgroundColor: colors.bgCard, borderWidth: 1, borderColor: colors.border },
-
-  /* Settings Styles */
   settingsLabel: { fontSize: 13, fontWeight: '800', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 },
   settingsInput: { backgroundColor: colors.bgCard, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.border, color: colors.textPrimary, fontSize: 24, fontWeight: '900', padding: spacing.md, marginBottom: spacing.lg, textAlign: 'center' },
   currencyChip: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.bgCard, borderWidth: 1.5, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
