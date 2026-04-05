@@ -6,14 +6,14 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const path = require('path');
 const crypto = require('crypto');
 const axios = require('axios');
-const http = require('http'); // ✅ Added for Socket.io
-const { Server } = require('socket.io'); // ✅ Added for Socket.io
+const http = require('http');
+const { Server } = require('socket.io');
+const bcrypt = require('bcryptjs'); // ✅ Added for Password Hashing
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ✅ Create HTTP Server and Socket.io instance
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
@@ -21,14 +21,28 @@ const io = new Server(server, {
     methods: ["GET", "POST"],
     credentials: true
   },
-  allowEIO3: true // Helps older browser versions connect
+  allowEIO3: true 
 });
+
 // ==========================================
 // 1. MONGODB DATABASE SETUP
 // ==========================================
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('✅ Connected to MongoDB'))
   .catch(err => console.error('❌ MongoDB Connection Error:', err));
+
+const userSchema = new mongoose.Schema({
+  username: { type: String, required: true, unique: true, lowercase: true, trim: true }, // ✅ Primary Key
+  password: { type: String, required: true }, // ✅ Added for Login
+  name: { type: String, required: true },
+  email: { type: String, required: true, unique: true },
+  isPro: { type: Boolean, default: false },
+  subscriptionEnd: { type: Date, default: null },
+  dailyChatCount: { type: Number, default: 0 },
+  lastChatReset: { type: Date, default: Date.now }
+});
+
+const User = mongoose.model('User', userSchema);
 
 const chatSchema = new mongoose.Schema({
   userId: { type: String, required: true },
@@ -44,18 +58,6 @@ const chatSchema = new mongoose.Schema({
 
 const Chat = mongoose.model('Chat', chatSchema);
 
-const userSchema = new mongoose.Schema({
-  userId: { type: String, required: true, unique: true },
-  name: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
-  isPro: { type: Boolean, default: false },
-  subscriptionEnd: { type: Date, default: null },
-  dailyChatCount: { type: Number, default: 0 },
-  lastChatReset: { type: Date, default: Date.now }
-});
-
-const User = mongoose.model('User', userSchema);
-
 // ==========================================
 // 2. GEMINI AI SETUP
 // ==========================================
@@ -65,34 +67,63 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 // 3. AUTHENTICATION & PAYMENT ROUTES
 // ==========================================
 
-app.post('/api/signup', async (req, res) => {
+// ✅ NEW: Signup Route (Create Account)
+app.post('/api/auth/signup', async (req, res) => {
   try {
-    const { name, email } = req.body;
-    if (!name || !email) return res.status(400).json({ error: "Name and email are required." });
-
-    const normalizedEmail = email.toLowerCase().trim();
-    let existingUser = await User.findOne({ email: normalizedEmail });
+    const { username, name, email, password } = req.body;
     
+    // Check if username or email already exists
+    const existingUser = await User.findOne({ $or: [{ username: username.toLowerCase() }, { email: email.toLowerCase() }] });
     if (existingUser) {
-      return res.json({ 
-        message: "Welcome back!", 
-        userId: existingUser.userId, 
-        name: existingUser.name 
-      });
+      return res.status(400).json({ error: "Username or Email already exists. Try logging in!" });
     }
 
-    const generatedUserId = 'usr_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
+    // Hash the password for production security
+    const hashedPassword = await bcrypt.hash(password, 10);
+
     const newUser = new User({
-      userId: generatedUserId,
+      username: username.toLowerCase().trim(),
       name: name.trim(),
-      email: normalizedEmail
+      email: email.toLowerCase().trim(),
+      password: hashedPassword
     });
 
     await newUser.save();
-    res.json({ message: "Account created successfully!", userId: newUser.userId, name: newUser.name });
+    res.json({ success: true, user: { username: newUser.username, name: newUser.name, email: newUser.email, isPro: false } });
   } catch (error) {
     console.error("Signup Error:", error);
     res.status(500).json({ error: "Failed to create account." });
+  }
+});
+
+// ✅ NEW: Login Route (Access Existing)
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    const user = await User.findOne({ username: username.toLowerCase().trim() });
+    
+    if (!user) return res.status(404).json({ error: "User not found. Please sign up." });
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(401).json({ error: "Invalid password." });
+
+    res.json({ 
+      success: true, 
+      user: { username: user.username, name: user.name, email: user.email, isPro: user.isPro } 
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Login failed." });
+  }
+});
+
+// ✅ NEW: Sync User Data Route (Used by HomeScreen.js)
+app.get('/api/user/:userId', async (req, res) => {
+  try {
+    const user = await User.findOne({ username: req.params.userId.toLowerCase() });
+    if (!user) return res.status(404).json({ error: "User not found" });
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
   }
 });
 
@@ -105,8 +136,7 @@ app.post('/api/paystack/initialize', async (req, res) => {
       {
         email: email,
         amount: amount * 100, 
-        currency: "GHS",
-        callback_url: "exp://10.22.31.127:8081",
+        currency: "USD", // ✅ Updated to USD as requested
         metadata: {
           custom_fields: [{ display_name: "Service", variable_name: "service", value: "LifeOS Pro" }]
         }
@@ -142,7 +172,7 @@ app.post('/api/paystack/webhook', async (req, res) => {
         { email: userEmail },
         { isPro: true, subscriptionEnd: expiryDate }
       );
-      console.log(`✅ User ${userEmail} upgraded to PRO via MoMo`);
+      console.log(`✅ User ${userEmail} upgraded to PRO via Paystack`);
     }
   }
   res.sendStatus(200);
@@ -163,7 +193,6 @@ app.post('/api/chat', async (req, res) => {
     const activeSessionId = sessionId || Date.now().toString();
     const chatTitle = messages[0].content.substring(0, 30) + (messages[0].content.length > 30 ? '...' : '');
 
-    // ✅ Using stable 1.5-flash to ensure 2026 compatibility
     const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" }); 
 
     const history = messages.slice(0, -1).map(msg => ({
@@ -245,9 +274,6 @@ io.on('connection', (socket) => {
     if (rooms.has(room)) {
       socket.join(room);
       console.log(`🤝 User joined room: ${room}`);
-      
-      // Tell both players the match is starting
-      // Creator gets X, Joiner gets O
       socket.to(room).emit('match_started', { symbol: 'X' }); 
       socket.emit('match_started', { symbol: 'O' });
     } else {
@@ -256,7 +282,6 @@ io.on('connection', (socket) => {
   });
 
   socket.on('make_move', (data) => {
-    // Broadcast the board and turn to the other person in the room
     socket.to(data.room).emit('opponent_moved', {
       board: data.board,
       xIsNext: data.xIsNext
@@ -276,15 +301,11 @@ app.get('/favicon.ico', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'favicon.ico'));
 });
 
-//--app.get('.*', (req, res) => { // Use wildcard to support SPA refreshes
-  //res.sendFile(path.join(__dirname, 'dist', 'index.html'));
-//});
 app.get(/.*/, (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
 const PORT = process.env.PORT || 3000;
-// ✅ Use 'server.listen' instead of 'app.listen' to support Socket.io
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });

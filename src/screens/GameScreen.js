@@ -29,6 +29,10 @@ export default function GameScreen() {
 
   // ✅ SOCKET CONNECTION LOGIC
 useEffect(() => {
+    const checkPro = async () => {
+  const status = await Storage.get('lifeos_is_pro');
+  setIsPro(!!status);
+};
   if (playMode === 'multi') {
     // 1. Establish/Reuse Connection
     if (!socket || !socket.connected) {
@@ -223,17 +227,37 @@ useEffect(() => {
           </TouchableOpacity>
         </Row>
 
-        {playMode === 'ai' && (
-          <Row style={{ justifyContent: 'center', marginBottom: spacing.lg, gap: spacing.sm }}>
-            {DIFFICULTIES.map(diff => (
-              <Chip 
-                key={diff} label={diff} active={difficulty === diff} 
-                color={diff === 'Easy' ? colors.health : diff === 'Medium' ? colors.warning : colors.danger} 
-                onPress={() => { setDifficulty(diff); fullReset(); }} 
-              />
-            ))}
-          </Row>
-        )}
+   {playMode === 'ai' && (
+  <Row style={{ justifyContent: 'center', marginBottom: spacing.lg, gap: spacing.sm }}>
+    {DIFFICULTIES.map(diff => (
+      <Chip 
+        key={diff} 
+        label={diff} 
+        active={difficulty === diff} 
+        // ✅ Add a lock icon visual for Non-Pro users on 'Hard'
+        icon={diff === 'Hard' && !isPro ? "lock" : null}
+        color={diff === 'Easy' ? colors.health : diff === 'Medium' ? colors.warning : colors.danger} 
+        onPress={() => {
+          // 🔒 The "Pro Gatekeeper" Logic
+          if (diff === 'Hard' && !isPro) {
+            Alert.alert(
+              "LifeOS Pro Feature 🌟",
+              "The 'Hard' AI is a Pro feature. Upgrade to challenge our most advanced algorithm!",
+              [
+                { text: "Maybe Later", style: "cancel" },
+                { text: "Upgrade Now", onPress: () => navigation.navigate('Home') }
+              ]
+            );
+            return;
+          }
+          
+          setDifficulty(diff); 
+          fullReset(); 
+        }} 
+      />
+    ))}
+  </Row>
+)}
 
         {playMode === 'multi' && multiState === 'menu' && (
           <Card style={{ marginBottom: spacing.lg }}>

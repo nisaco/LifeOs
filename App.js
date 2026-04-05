@@ -15,7 +15,8 @@ import HealthScreen from './src/screens/HealthScreen';
 import FocusScreen from './src/screens/FocusScreen';
 import GameScreen from './src/screens/GameScreen';
 import WelcomeScreen from './src/screens/WelcomeScreen'; 
-import SignupScreen from './src/screens/SignupScreen'; 
+import AuthScreen from './src/screens/AuthScreen';
+//import SignupScreen from './src/screens/SignupScreen'; 
 
 // Utility Imports
 import { colors } from './src/utils/theme';
