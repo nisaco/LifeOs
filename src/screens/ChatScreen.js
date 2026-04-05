@@ -15,6 +15,9 @@ export default function ChatScreen() {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(false);
   
+  // 🚀 MANUAL KEYBOARD TRACKING
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
   const [currentSessionId, setCurrentSessionId] = useState(null);
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [sessionsList, setSessionsList] = useState([]);
@@ -25,6 +28,19 @@ export default function ChatScreen() {
 
   useEffect(() => {
     loadSidebar();
+
+    // Listeners to manually track keyboard height on Android
+    const showSubscription = Keyboard.addListener('keyboardDidShow', (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
   }, []);
 
   async function loadSidebar() {
@@ -93,7 +109,7 @@ export default function ChatScreen() {
   const suggestedPrompts = ['Help me plan my week', 'Explain compound interest', 'Give me a 5-min workout'];
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingBottom: Platform.OS === 'android' ? keyboardHeight : 0 }]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => { loadSidebar(); setSidebarVisible(true); }} style={styles.iconBtn}>
@@ -110,13 +126,10 @@ export default function ChatScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* 🚀 THE ULTIMATE KEYBOARD FIX: behavior="position" */}
       <KeyboardAvoidingView 
         style={{ flex: 1 }} 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'position'} 
-        // We use a manual offset to account for the Header + Bottom Tab Bar
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : -60}
-        contentContainerStyle={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={{ flex: 1 }}>
@@ -175,7 +188,6 @@ export default function ChatScreen() {
           </View>
         </TouchableWithoutFeedback>
 
-        {/* Input Row stays inside the AvoidingView to be pushed up */}
         <View style={styles.inputRow}>
           <TextInput
             style={styles.input} value={input} onChangeText={setInput}
@@ -187,7 +199,7 @@ export default function ChatScreen() {
         </View>
       </KeyboardAvoidingView>
 
-      {/* Sidebar Modal */}
+      {/* Modals remain the same */}
       <Modal visible={sidebarVisible} transparent animationType="fade">
         <View style={styles.sidebarOverlay}>
           <View style={styles.sidebarContent}>
@@ -197,12 +209,10 @@ export default function ChatScreen() {
                 <Feather name="x" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
-            
             <TouchableOpacity onPress={startNewChat} style={styles.newChatBtnSidebar}>
               <Feather name="plus" size={18} color="#fff" style={{ marginRight: 8 }} />
               <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>New Chat</Text>
             </TouchableOpacity>
-
             <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
               {sessionsList.length === 0 ? (
                 <Text style={styles.sidebarEmptyText}>No previous chats found.</Text>
@@ -230,7 +240,6 @@ export default function ChatScreen() {
         </View>
       </Modal>
 
-      {/* Glassy Delete Modal */}
       <Modal visible={deleteModalVisible} transparent animationType="fade">
         <View style={styles.glassyOverlay}>
           <View style={styles.glassyCard}>
@@ -239,7 +248,6 @@ export default function ChatScreen() {
             </View>
             <Text style={styles.glassyTitle}>Delete Chat?</Text>
             <Text style={styles.glassyDesc}>This conversation will be permanently deleted. You cannot undo this action.</Text>
-            
             <View style={styles.glassyBtnRow}>
               <TouchableOpacity onPress={() => setDeleteModalVisible(false)} style={styles.glassyCancelBtn}>
                 <Text style={styles.glassyCancelText}>Cancel</Text>
@@ -262,7 +270,6 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 18, fontWeight: '800', color: colors.textPrimary },
   headerSub: { fontSize: 12, color: colors.primary, fontWeight: '600' },
   iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.bgCard, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
-  
   emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   emptyLogoBg: { width: 80, height: 80, borderRadius: 40, backgroundColor: colors.bgCard, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md, borderWidth: 1, borderColor: colors.border },
   emptyTitle: { fontSize: 24, fontWeight: '800', color: colors.textPrimary, marginBottom: spacing.xs },
@@ -270,7 +277,6 @@ const styles = StyleSheet.create({
   promptsGrid: { width: '100%', gap: spacing.sm },
   promptChip: { backgroundColor: colors.bgCard, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md },
   promptText: { color: colors.textSecondary, fontSize: 14, fontWeight: '600' },
-
   messagesList: { padding: spacing.md, paddingBottom: spacing.xl },
   bubble: { maxWidth: '85%', borderRadius: radius.xl, padding: spacing.md, marginBottom: spacing.sm },
   aiBubble: { alignSelf: 'flex-start', backgroundColor: colors.bgCard, borderWidth: 1, borderColor: colors.border },
@@ -279,15 +285,12 @@ const styles = StyleSheet.create({
   bubbleText: { fontSize: 15, color: colors.textPrimary, lineHeight: 22 },
   userBubbleText: { color: '#fff', fontWeight: '500' },
   bubbleTime: { fontSize: 11, color: colors.textMuted, marginTop: 4, alignSelf: 'flex-end' },
-
   typingIndicator: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingHorizontal: spacing.md, paddingBottom: spacing.xs },
   typingText: { fontSize: 13, color: colors.textSecondary, fontWeight: '600' },
-
   inputRow: { flexDirection: 'row', alignItems: 'flex-end', padding: spacing.sm, gap: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.bg },
   input: { flex: 1, backgroundColor: colors.bgCard, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.border, color: colors.textPrimary, fontSize: 15, paddingHorizontal: spacing.md, paddingVertical: 14, maxHeight: 120 },
   sendBtn: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
   sendBtnDisabled: { backgroundColor: colors.border },
-
   sidebarOverlay: { flex: 1, flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.6)' },
   sidebarContent: { width: '75%', maxWidth: 320, backgroundColor: colors.bgElevated, height: '100%', borderRightWidth: 1, borderRightColor: colors.border },
   sidebarHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.md, paddingTop: 50, paddingBottom: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
@@ -298,7 +301,6 @@ const styles = StyleSheet.create({
   sessionTitle: { fontSize: 15, fontWeight: '700', color: colors.textPrimary, marginBottom: 4 },
   sessionDate: { fontSize: 12, color: colors.textMuted },
   sidebarEmptyText: { color: colors.textMuted, textAlign: 'center', marginTop: spacing.xl, fontSize: 14 },
-
   glassyOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: spacing.xl },
   glassyCard: { width: '100%', maxWidth: 340, backgroundColor: colors.bgElevated + 'F2', borderRadius: radius.xl, padding: spacing.xl, alignItems: 'center', borderWidth: 1, borderColor: colors.border, ...shadow.lg },
   glassyIconBg: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.danger + '15', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md, borderWidth: 1, borderColor: colors.danger + '40' },
