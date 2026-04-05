@@ -15,8 +15,7 @@ import HealthScreen from './src/screens/HealthScreen';
 import FocusScreen from './src/screens/FocusScreen';
 import GameScreen from './src/screens/GameScreen';
 import WelcomeScreen from './src/screens/WelcomeScreen'; 
-import AuthScreen from './src/screens/AuthScreen';
-//import SignupScreen from './src/screens/SignupScreen'; 
+import AuthScreen from './src/screens/AuthScreen'; // ✅ This is the correct import
 
 // Utility Imports
 import { colors } from './src/utils/theme';
@@ -51,7 +50,6 @@ export default function App() {
   const [showWelcome, setShowWelcome] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // ✅ Persists session and listens for Auth changes
   useEffect(() => {
     checkAuth();
   }, []);
@@ -60,7 +58,6 @@ export default function App() {
     const savedUserId = await Storage.get('lifeos_user_id');
     if (savedUserId) {
       setIsAuthenticated(true);
-      // If returning user, skip welcome after the first load of the session
       setShowWelcome(false); 
     } else {
       setIsAuthenticated(false);
@@ -76,13 +73,14 @@ export default function App() {
     );
   }
 
+  // ✅ FIXED: Changed <SignupScreen /> to <AuthScreen />
   if (!isAuthenticated) {
     return (
       <>
         <StatusBar style="light" />
-        <SignupScreen onComplete={() => {
+        <AuthScreen onComplete={() => {
           setIsAuthenticated(true);
-          setShowWelcome(true); // Show welcome only for brand new signups
+          setShowWelcome(true); 
         }} />
       </>
     );
@@ -110,6 +108,7 @@ export default function App() {
             borderTopWidth: 1,
             height: 72,
             paddingBottom: 12,
+            tabBarHideOnKeyboard: true, // Prevents tab bar from pushing up on web
           },
           tabBarIcon: ({ focused }) => (
             <TabIcon name={route.name} focused={focused} />
