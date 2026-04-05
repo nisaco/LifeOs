@@ -13,13 +13,17 @@ export default function HomeScreen({ navigation }) {
   const [spentToday, setSpentToday] = useState(0);
   const [pendingTasks, setPendingTasks] = useState(0);
   const [greeting, setGreeting] = useState('');
-  const [userName, setUserName] = useState('Nii'); // Default
-  const [isPro, setIsPro] = useState(false); // Track Pro status
+  const [userName, setUserName] = useState('User'); 
+  const [isPro, setIsPro] = useState(false); 
   const [payLoading, setPayLoading] = useState(false);
+  const [syncLoading, setSyncLoading] = useState(true); // ✅ Production sync tracker
 
   useEffect(() => {
+    // Initial fast load from Storage
     loadDashboardData();
     calculateGreeting();
+    // Background sync from Server for "Mass Production" accuracy
+    syncUserStatus();
   }, []);
 
   function calculateGreeting() {
@@ -27,6 +31,30 @@ export default function HomeScreen({ navigation }) {
     if (hour < 12) setGreeting('Good morning');
     else if (hour < 17) setGreeting('Good afternoon');
     else setGreeting('Good evening');
+  }
+
+  // ✅ Production Sync: Verifies Pro status with Render DB automatically
+  async function syncUserStatus() {
+    try {
+      const userId = await Storage.get('lifeos_user_id');
+      if (!userId) return;
+
+      const response = await fetch(`https://lifeos-api-js9i.onrender.com/api/user/${userId}`);
+      if (!response.ok) return;
+
+      const data = await response.json();
+      if (data) {
+        setIsPro(data.isPro);
+        setUserName(data.name);
+        // Update local storage so the next "Fast Load" is accurate
+        await Storage.set('lifeos_is_pro', data.isPro);
+        await Storage.set('lifeos_user_name', data.name);
+      }
+    } catch (err) {
+      console.log("Background sync failed, using cached data.");
+    } finally {
+      setSyncLoading(false);
+    }
   }
 
   async function loadDashboardData() {
@@ -52,11 +80,11 @@ export default function HomeScreen({ navigation }) {
   const onRefresh = async () => {
     setRefreshing(true);
     await loadDashboardData();
+    await syncUserStatus(); // Re-verify with server on swipe-down
     setRefreshing(false);
   };
 
   const handleUpgrade = async () => {
-    // Check for email
     const userEmail = await Storage.get('lifeos_user_email');
     
     if (!userEmail) {
@@ -71,17 +99,16 @@ export default function HomeScreen({ navigation }) {
     setPayLoading(true);
 
     try {
-      console.log("Calling Render API for:", userEmail);
+      // ✅ Production Note: Sending $3 USD. Paystack converts this to local currency (GHS/NGN) for the user.
       const response = await fetch('https://lifeos-api-js9i.onrender.com/api/paystack/initialize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: userEmail, amount: 20 })
+        body: JSON.stringify({ email: userEmail, amount: 3, currency: "USD" }) 
       });
 
       const data = await response.json();
 
       if (data.authorization_url) {
-        // ✅ The core command to open the browser
         const supported = await Linking.canOpenURL(data.authorization_url);
         if (supported) {
           await Linking.openURL(data.authorization_url);
@@ -92,8 +119,7 @@ export default function HomeScreen({ navigation }) {
         throw new Error("Payment link generation failed");
       }
     } catch (err) {
-      console.log("❌ Error:", err);
-      Alert.alert("Payment Error", "The server is taking too long to wake up. Please try again in 10 seconds.");
+      Alert.alert("Payment Error", "Server is warming up. Please try again in 10 seconds.");
     } finally {
       setPayLoading(false);
     }
@@ -123,6 +149,7 @@ export default function HomeScreen({ navigation }) {
             await Storage.set('lifeos_user_id', '');
             await Storage.set('lifeos_user_name', '');
             await Storage.set('lifeos_user_email', '');
+            await Storage.set('lifeos_is_pro', false); // Clear pro status on logout
             if (Platform.OS === 'web') {
               window.alert('Signed out successfully! Please refresh the page.');
             } else {
@@ -169,7 +196,7 @@ export default function HomeScreen({ navigation }) {
                   <Text style={styles.proSub}>Unlimited AI, Cloud Backup & Reports</Text>
                 </View>
                 <View style={styles.priceBadge}>
-                   <Text style={styles.proPrice}>₵20/mo</Text>
+                   <Text style={styles.proPrice}>$3/mo</Text>
                 </View>
               </Row>
             </Card>
@@ -187,7 +214,7 @@ export default function HomeScreen({ navigation }) {
           <QuickAction icon="activity" label="Health" color={colors.health} screen="Health" subText="Log data" />
         </View>
 
-        <TouchableOpacity activeOpacity={0.9}>
+        <TouchableOpacity activeOpacity={0.9} onPress={() => navigation.navigate('Chat')}>
           <Card style={styles.bannerCard}>
             <Row>
               <View style={styles.bannerIcon}>
