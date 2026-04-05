@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, FlatList,
   StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator,
-  Alert, ScrollView, Modal,
+  Alert, ScrollView, Modal, TouchableWithoutFeedback, Keyboard
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors, spacing, radius, shadow } from '../utils/theme';
@@ -110,57 +110,61 @@ export default function ChatScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* ✅ Fixed: Main Chat Area with proper Keyboard Handling */}
+      {/* Main Chat Area with Improved Keyboard Handling */}
       <KeyboardAvoidingView 
         style={{ flex: 1 }} 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'} 
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 100}
       >
-        {initialLoading ? (
-          <View style={styles.emptyContainer}>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={{ color: colors.textSecondary, marginTop: 16 }}>Loading conversation...</Text>
-          </View>
-        ) : messages.length === 0 ? (
-          <ScrollView contentContainerStyle={styles.emptyContainer}>
-            <View style={styles.emptyLogoBg}>
-              <Feather name="cpu" size={48} color={colors.primary} />
-            </View>
-            <Text style={styles.emptyTitle}>LifeOS Assistant</Text>
-            <Text style={styles.emptySub}>Start a new conversation</Text>
-            <View style={styles.promptsGrid}>
-              {suggestedPrompts.map((p, index) => (
-                <TouchableOpacity key={`prompt_${index}`} onPress={() => setInput(p)} style={styles.promptChip}>
-                  <Text style={styles.promptText}>{p}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </ScrollView>
-        ) : (
-          <FlatList
-            ref={listRef} 
-            data={messages} 
-            keyExtractor={(m, index) => m._id || m.id || index.toString()} 
-            contentContainerStyle={styles.messagesList}
-            onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
-            renderItem={({ item }) => (
-              <View style={[styles.bubble, item.role === 'user' ? styles.userBubble : styles.aiBubble]}>
-                
-                {!!(item.role === 'assistant') && (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-                    <Feather name="cpu" size={12} color={colors.primary} style={{ marginRight: 4 }} />
-                    <Text style={styles.bubbleName}>LifeOS AI</Text>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={{ flex: 1 }}>
+            {initialLoading ? (
+              <View style={styles.emptyContainer}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={{ color: colors.textSecondary, marginTop: 16 }}>Loading conversation...</Text>
+              </View>
+            ) : messages.length === 0 ? (
+              <ScrollView contentContainerStyle={styles.emptyContainer}>
+                <View style={styles.emptyLogoBg}>
+                  <Feather name="cpu" size={48} color={colors.primary} />
+                </View>
+                <Text style={styles.emptyTitle}>LifeOS Assistant</Text>
+                <Text style={styles.emptySub}>Start a new conversation</Text>
+                <View style={styles.promptsGrid}>
+                  {suggestedPrompts.map((p, index) => (
+                    <TouchableOpacity key={`prompt_${index}`} onPress={() => setInput(p)} style={styles.promptChip}>
+                      <Text style={styles.promptText}>{p}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+            ) : (
+              <FlatList
+                ref={listRef} 
+                data={messages} 
+                keyExtractor={(m, index) => m._id || m.id || index.toString()} 
+                contentContainerStyle={styles.messagesList}
+                onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
+                renderItem={({ item }) => (
+                  <View style={[styles.bubble, item.role === 'user' ? styles.userBubble : styles.aiBubble]}>
+                    
+                    {!!(item.role === 'assistant') && (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                        <Feather name="cpu" size={12} color={colors.primary} style={{ marginRight: 4 }} />
+                        <Text style={styles.bubbleName}>LifeOS AI</Text>
+                      </View>
+                    )}
+                    
+                    <Text style={[styles.bubbleText, item.role === 'user' && styles.userBubbleText]}>{item.content}</Text>
+                    <Text style={[styles.bubbleTime, item.role === 'user' && { color: 'rgba(255,255,255,0.7)' }]}>
+                      {item.time ? format(new Date(item.time), 'h:mm a') : 'Now'}
+                    </Text>
                   </View>
                 )}
-                
-                <Text style={[styles.bubbleText, item.role === 'user' && styles.userBubbleText]}>{item.content}</Text>
-                <Text style={[styles.bubbleTime, item.role === 'user' && { color: 'rgba(255,255,255,0.7)' }]}>
-                  {item.time ? format(new Date(item.time), 'h:mm a') : 'Now'}
-                </Text>
-              </View>
+              />
             )}
-          />
-        )}
+          </View>
+        </TouchableWithoutFeedback>
 
         {!!loading && (
           <View style={styles.typingIndicator}>
@@ -169,7 +173,6 @@ export default function ChatScreen() {
           </View>
         )}
 
-        {/* This row stays visible above the keyboard */}
         <View style={styles.inputRow}>
           <TextInput
             style={styles.input} value={input} onChangeText={setInput}

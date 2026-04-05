@@ -12,6 +12,7 @@
     },
     "android": {
       "package": "com.niikpakpo.lifeos",
+      "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0D0D1A"
