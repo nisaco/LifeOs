@@ -113,8 +113,8 @@ export default function ChatScreen() {
       {/* Main Chat Area with Improved Keyboard Handling */}
       <KeyboardAvoidingView 
         style={{ flex: 1 }} 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'} 
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 100}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={{ flex: 1 }}>
