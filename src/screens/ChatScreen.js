@@ -110,11 +110,13 @@ export default function ChatScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Main Chat Area with Improved Keyboard Handling */}
+      {/* 🚀 THE ULTIMATE KEYBOARD FIX: behavior="position" */}
       <KeyboardAvoidingView 
         style={{ flex: 1 }} 
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'position'} 
+        // We use a manual offset to account for the Header + Bottom Tab Bar
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : -60}
+        contentContainerStyle={{ flex: 1 }}
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={{ flex: 1 }}>
@@ -163,16 +165,17 @@ export default function ChatScreen() {
                 )}
               />
             )}
+
+            {!!loading && (
+              <View style={styles.typingIndicator}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={styles.typingText}>Thinking...</Text>
+              </View>
+            )}
           </View>
         </TouchableWithoutFeedback>
 
-        {!!loading && (
-          <View style={styles.typingIndicator}>
-            <ActivityIndicator size="small" color={colors.primary} />
-            <Text style={styles.typingText}>Thinking...</Text>
-          </View>
-        )}
-
+        {/* Input Row stays inside the AvoidingView to be pushed up */}
         <View style={styles.inputRow}>
           <TextInput
             style={styles.input} value={input} onChangeText={setInput}
@@ -210,12 +213,6 @@ export default function ChatScreen() {
                     style={[styles.sessionItem, currentSessionId === session.sessionId && styles.sessionItemActive]}
                     onPress={() => loadSession(session.sessionId)}
                     onLongPress={() => promptDeleteSession(session.sessionId)} 
-                    onContextMenu={(e) => { 
-                      if (Platform.OS === 'web') {
-                        e.preventDefault(); 
-                        promptDeleteSession(session.sessionId);
-                      }
-                    }}
                   >
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.sessionTitle, currentSessionId === session.sessionId && { color: colors.primary }]} numberOfLines={1}>
@@ -261,7 +258,7 @@ export default function ChatScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, paddingTop: spacing.xl, borderBottomWidth: 1, borderBottomColor: colors.border },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, paddingTop: 40, borderBottomWidth: 1, borderBottomColor: colors.border },
   headerTitle: { fontSize: 18, fontWeight: '800', color: colors.textPrimary },
   headerSub: { fontSize: 12, color: colors.primary, fontWeight: '600' },
   iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.bgCard, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
@@ -293,7 +290,7 @@ const styles = StyleSheet.create({
 
   sidebarOverlay: { flex: 1, flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.6)' },
   sidebarContent: { width: '75%', maxWidth: 320, backgroundColor: colors.bgElevated, height: '100%', borderRightWidth: 1, borderRightColor: colors.border },
-  sidebarHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.md, paddingTop: spacing.xxl, paddingBottom: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
+  sidebarHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.md, paddingTop: 50, paddingBottom: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
   sidebarTitle: { fontSize: 18, fontWeight: '800', color: colors.textPrimary },
   newChatBtnSidebar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primary, margin: spacing.md, paddingVertical: 12, borderRadius: radius.lg },
   sessionItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
@@ -303,7 +300,7 @@ const styles = StyleSheet.create({
   sidebarEmptyText: { color: colors.textMuted, textAlign: 'center', marginTop: spacing.xl, fontSize: 14 },
 
   glassyOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: spacing.xl },
-  glassyCard: { width: '100%', maxWidth: 340, backgroundColor: colors.bgElevated + 'F2', borderRadius: radius.xl, padding: spacing.xl, alignItems: 'center', borderWidth: 1, borderColor: colors.border, ...shadow.lg, ...(Platform.OS === 'web' ? { backdropFilter: 'blur(10px)' } : {}) },
+  glassyCard: { width: '100%', maxWidth: 340, backgroundColor: colors.bgElevated + 'F2', borderRadius: radius.xl, padding: spacing.xl, alignItems: 'center', borderWidth: 1, borderColor: colors.border, ...shadow.lg },
   glassyIconBg: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.danger + '15', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md, borderWidth: 1, borderColor: colors.danger + '40' },
   glassyTitle: { fontSize: 20, fontWeight: '900', color: colors.textPrimary, marginBottom: spacing.xs },
   glassyDesc: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.xl, lineHeight: 20 },
