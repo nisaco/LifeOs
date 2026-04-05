@@ -219,9 +219,11 @@ app.delete('/api/chat/history/:sessionId', async (req, res) => {
 
 // ==========================================
 // STATIC FILE SERVING & MONITORING
+
+app.use(express.static(path.join(__dirname, 'dist')));
 // ==========================================
 app.get('/', (req, res) => {
-  res.send('LifeOS API is running smoothly!');
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
 const PORT = process.env.PORT || 3000;
