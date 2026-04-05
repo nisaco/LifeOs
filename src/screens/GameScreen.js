@@ -30,30 +30,35 @@ export default function GameScreen() {
   // ✅ SOCKET CONNECTION LOGIC
 useEffect(() => {
   if (playMode === 'multi') {
-    // Only connect if socket doesn't exist or is disconnected
+    // 1. Establish/Reuse Connection
     if (!socket || !socket.connected) {
-      socket = io(SOCKET_URL, {
-        transports: ['websocket'], // Forces faster connection
-        upgrade: false
-      });
+      socket = io(SOCKET_URL, { transports: ['websocket'] });
     }
+
+    // 2. Clear old listeners to prevent "Ghost Turns"
+    socket.off('match_started');
+    socket.off('opponent_moved');
 
     socket.on('match_started', (data) => {
       setBoard(Array(9).fill(null));
-      setXIsNext(true);
+      setXIsNext(true); // Always start with X
       setPlayerSymbol(data.symbol);
       setMultiState('playing');
+      console.log("Match Started! I am:", data.symbol);
     });
 
-    // ... (rest of your listeners)
+    socket.on('opponent_moved', (data) => {
+      // ✅ Critical: Update board AND turn state based on opponent's action
+      setBoard(data.board);
+      setXIsNext(data.xIsNext); 
+    });
 
     return () => {
       socket.off('match_started');
       socket.off('opponent_moved');
-      // Don't fully disconnect here so the socket stays alive during re-renders
     };
   }
-}, [playMode]);
+}, [playMode]); // Only re-run if mode changes
 
   const calculateWinner = (squares) => {
     const lines = [[0,1,2], [3,4,5], [6,7,8], [0,3,6], [1,4,7], [2,5,8], [0,4,8], [2,4,6]];
@@ -111,33 +116,38 @@ useEffect(() => {
   };
 
   const handlePress = (index) => {
-    if (board[index] || calculateWinner(board)) return;
-    
-    // ✅ Check if it's actually this player's turn in Multiplayer
-    if (playMode === 'multi') {
-      const currentTurnSymbol = xIsNext ? 'X' : 'O';
-      if (currentTurnSymbol !== playerSymbol) return;
+  if (board[index] || calculateWinner(board)) return;
+  
+  if (playMode === 'multi') {
+    const currentTurnSymbol = xIsNext ? 'X' : 'O';
+    // ✅ Check: Is it actually MY turn?
+    if (currentTurnSymbol !== playerSymbol) {
+      console.log("Wait for opponent!");
+      return;
     }
+  }
 
-    if (playMode === 'ai' && !xIsNext) return; 
+  const newBoard = [...board];
+  newBoard[index] = xIsNext ? 'X' : 'O';
+  setBoard(newBoard);
+  
+  const nextTurn = !xIsNext;
+  setXIsNext(nextTurn); // Switch locally
 
-    const newBoard = [...board];
-    newBoard[index] = xIsNext ? 'X' : 'O';
-    setBoard(newBoard);
-    const nextTurn = !xIsNext;
-    setXIsNext(nextTurn);
-
-    // ✅ Emit move to server
-    if (playMode === 'multi') {
-      socket.emit('make_move', {
-        room: myCode || joinCode,
-        board: newBoard,
-        xIsNext: nextTurn
-      });
-    }
-  };
+  if (playMode === 'multi') {
+    // ✅ Tell the server to tell the opponent to switch turns
+    socket.emit('make_move', {
+      room: myCode || joinCode,
+      board: newBoard,
+      xIsNext: nextTurn 
+    });
+  }
+};
 
   const fullReset = () => {
+    if (socket && playMode === 'multi') {
+       socket.emit('leave_room', myCode || joinCode);
+    }
     setBoard(Array(9).fill(null));
     setStartingPlayer('X');
     setXIsNext(true);
