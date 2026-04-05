@@ -222,6 +222,11 @@ app.delete('/api/chat/history/:sessionId', async (req, res) => {
 
 app.use(express.static(path.join(__dirname, 'dist')));
 // ==========================================
+
+app.get('/favicon.ico', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist', 'favicon.ico'));
+});
+
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
