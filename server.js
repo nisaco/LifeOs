@@ -272,7 +272,10 @@ app.get('/favicon.ico', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'favicon.ico'));
 });
 
-app.get('.*', (req, res) => { // Use wildcard to support SPA refreshes
+//--app.get('.*', (req, res) => { // Use wildcard to support SPA refreshes
+  //res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+//});
+app.get('/:any*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
