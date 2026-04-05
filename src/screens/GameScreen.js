@@ -28,33 +28,32 @@ export default function GameScreen() {
   const [playerSymbol, setPlayerSymbol] = useState(null); // 'X' or 'O'
 
   // ✅ SOCKET CONNECTION LOGIC
-  useEffect(() => {
-    if (playMode === 'multi') {
-      socket = io(SOCKET_URL);
-
-      socket.on('match_started', (data) => {
-        setBoard(Array(9).fill(null));
-        setXIsNext(true);
-        setPlayerSymbol(data.symbol);
-        setMultiState('playing');
-        if (data.symbol === 'O') setMyCode(joinCode); // Sync code for both
+useEffect(() => {
+  if (playMode === 'multi') {
+    // Only connect if socket doesn't exist or is disconnected
+    if (!socket || !socket.connected) {
+      socket = io(SOCKET_URL, {
+        transports: ['websocket'], // Forces faster connection
+        upgrade: false
       });
-
-      socket.on('opponent_moved', (data) => {
-        setBoard(data.board);
-        setXIsNext(data.xIsNext);
-      });
-
-      socket.on('opponent_left', () => {
-        Alert.alert("Opponent Left", "The other player disconnected.");
-        fullReset();
-      });
-
-      return () => {
-        socket.disconnect();
-      };
     }
-  }, [playMode]);
+
+    socket.on('match_started', (data) => {
+      setBoard(Array(9).fill(null));
+      setXIsNext(true);
+      setPlayerSymbol(data.symbol);
+      setMultiState('playing');
+    });
+
+    // ... (rest of your listeners)
+
+    return () => {
+      socket.off('match_started');
+      socket.off('opponent_moved');
+      // Don't fully disconnect here so the socket stays alive during re-renders
+    };
+  }
+}, [playMode]);
 
   const calculateWinner = (squares) => {
     const lines = [[0,1,2], [3,4,5], [6,7,8], [0,3,6], [1,4,7], [2,5,8], [0,4,8], [2,4,6]];

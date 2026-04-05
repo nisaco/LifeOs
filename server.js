@@ -16,9 +16,13 @@ app.use(express.json());
 // ✅ Create HTTP Server and Socket.io instance
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: "*" }
+  cors: {
+    origin: "*", 
+    methods: ["GET", "POST"],
+    credentials: true
+  },
+  allowEIO3: true // Helps older browser versions connect
 });
-
 // ==========================================
 // 1. MONGODB DATABASE SETUP
 // ==========================================
