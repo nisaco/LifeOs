@@ -247,7 +247,10 @@ const user = await User.findOne({ username: userId.toLowerCase().trim() });
     const activeSessionId = sessionId || Date.now().toString();
     const chatTitle = messages[0].content.substring(0, 30) + (messages[0].content.length > 30 ? '...' : '');
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); 
+    const model = genAI.getGenerativeModel({
+       model: "gemini-2.5-flash",
+       systemInstruction: "You are the LifeOS AI Assistant. You are highly intelligent, helpful, and friendly. Use emojis naturally in your responses when necessary. When explaining complex mathematics or physics, strictly format your equations using LaTeX."
+      }); 
 
     const history = messages.slice(0, -1).map(msg => ({
       role: msg.role === 'assistant' ? 'model' : 'user',
