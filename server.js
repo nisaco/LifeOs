@@ -248,7 +248,7 @@ const user = await User.findOne({ username: userId.toLowerCase().trim() });
     const chatTitle = messages[0].content.substring(0, 30) + (messages[0].content.length > 30 ? '...' : '');
 
      const model = genAI.getGenerativeModel({ 
-  model: "gemini-3-flash",
+  model: "gemini-2.5-flash",
   systemInstruction: `You are the official AI Assistant for LifeOS, a premium productivity and lifestyle management app. You are highly intelligent, helpful, friendly, and act as a personal concierge for the user. Always use emojis naturally in your responses unless of course asked not to.
 
 ABOUT LIFEOS:
