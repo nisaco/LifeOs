@@ -191,30 +191,56 @@ app.post('/api/chat', async (req, res) => {
     }
 
 // 🔒 1. FIND THE USER & CHECK PRO LIMITS (20 Per Hour Logic)
-    const user = await User.findOne({ username: userId.toLowerCase().trim() });
+const user = await User.findOne({ username: userId.toLowerCase().trim() });
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const now = new Date();
     const lastReset = user.lastChatReset || new Date(0);
-    
-    // Check if we are in the same HOUR and same DAY
-    const isSameHour = now.getFullYear() === lastReset.getFullYear() &&
-                       now.getMonth() === lastReset.getMonth() &&
-                       now.getDate() === lastReset.getDate() &&
-                       now.getHours() === lastReset.getHours();
 
-    if (!isSameHour) {
-      user.dailyChatCount = 0; // We reuse this field as 'hourlyChatCount'
+    // Reset the entire penalty system at midnight
+    const isSameDay = now.getFullYear() === lastReset.getFullYear() &&
+                      now.getMonth() === lastReset.getMonth() &&
+                      now.getDate() === lastReset.getDate();
+
+    if (!isSameDay) {
+      user.dailyChatCount = 0;
+      user.limitHitCount = 0; // Reset their penalty tier every day
+      user.nextAllowedChatTime = null;
       user.lastChatReset = now;
     }
 
-    if (!user.isPro && user.dailyChatCount >= 20) {
-      await user.save(); 
-      // 👇 We send "LIMIT_REACHED" so the frontend knows exactly what happened
-      return res.status(403).json({ 
-        error: "LIMIT_REACHED", 
-        message: "You've used your 20 free messages for this hour." 
-      });
+    if (!user.isPro) {
+      // A. Are they currently in the penalty box?
+      if (user.nextAllowedChatTime && now < user.nextAllowedChatTime) {
+        return res.status(403).json({ 
+          error: "LIMIT_REACHED", 
+          nextAllowed: user.nextAllowedChatTime 
+        });
+      }
+
+      // B. Did they just finish their penalty? Welcome back!
+      if (user.nextAllowedChatTime && now >= user.nextAllowedChatTime) {
+        user.dailyChatCount = 0; // Give them a fresh 20 chats
+        user.nextAllowedChatTime = null; // Remove the restriction
+      }
+
+      // C. Have they hit the 20 limit right now?
+      if (user.dailyChatCount >= 20) {
+        let penaltyHours = 1; // Default 1 hour
+        if (user.limitHitCount === 1) penaltyHours = 1.5; // 1 hr 30 mins
+        else if (user.limitHitCount >= 2) penaltyHours = 2; // 2 hours
+
+        const penaltyMs = penaltyHours * 60 * 60 * 1000;
+        user.nextAllowedChatTime = new Date(now.getTime() + penaltyMs);
+        user.limitHitCount = (user.limitHitCount || 0) + 1; // Move them up the penalty tier
+        
+        await user.save();
+
+        return res.status(403).json({ 
+          error: "LIMIT_REACHED", 
+          nextAllowed: user.nextAllowedChatTime 
+        });
+      }
     }
 
     // 🧠 2. IF THEY PASS, CALL GEMINI AI
@@ -251,10 +277,10 @@ app.post('/api/chat', async (req, res) => {
     );
 
     // 📈 4. INCREMENT CHAT COUNT & SAVE
-    if (!user.isPro) {
-      user.dailyChatCount += 1;
+ if (!user.isPro) {
+      user.dailyChatCount = (user.dailyChatCount || 0) + 1;
+      await user.save();
     }
-    await user.save();
 
     res.json({ reply: aiResponseText, sessionId: activeSessionId, chatsLeft: user.isPro ? 'Unlimited' : 20 - user.dailyChatCount });
   } catch (error) {
