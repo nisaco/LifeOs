@@ -18,8 +18,20 @@ export async function sendMessage(messages, sessionId) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, sessionId, messages })
     });
+    
     const data = await response.json();
-    if (!response.ok) throw new Error(data.error);
+    
+    // 🛑 THE UPDATED ALARM: Throw specific errors so ChatScreen catches them!
+    if (!response.ok) {
+      if (data.error === "LIMIT_REACHED") {
+        throw new Error("LIMIT_REACHED");
+      }
+      if (data.error === "API_BUSY") {
+        throw new Error("The AI is thinking a little too hard right now. Please wait 30 seconds and try again!");
+      }
+      throw new Error(data.error || "Failed to communicate with the server.");
+    }
+    
     return { reply: data.reply, newSessionId: data.sessionId, chatsLeft: data.chatsLeft };
   } catch (error) { throw error; }
 }
