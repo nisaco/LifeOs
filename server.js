@@ -256,7 +256,7 @@ app.post('/api/chat', async (req, res) => {
     }
     await user.save();
 
-    res.json({ reply: aiResponseText, sessionId: activeSessionId, chatsLeft: user.isPro ? 'Unlimited' : 5 - user.dailyChatCount });
+    res.json({ reply: aiResponseText, sessionId: activeSessionId, chatsLeft: user.isPro ? 'Unlimited' : 20 - user.dailyChatCount });
   } catch (error) {
     console.error("Server Error:", error);
     res.status(500).json({ error: "Failed to process chat." });
