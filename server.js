@@ -160,8 +160,8 @@ app.post('/api/paystack/initialize', async (req, res) => {
 
 app.post('/api/paystack/webhook', async (req, res) => {
   const hash = crypto.createHmac('sha512', process.env.PAYSTACK_SECRET_KEY)
-                     .update(JSON.stringify(req.body))
-                     .digest('hex');
+                       .update(JSON.stringify(req.body))
+                       .digest('hex');
 
   if (hash === req.headers['x-paystack-signature']) {
     const event = req.body;
@@ -241,14 +241,15 @@ app.post('/api/sync', async (req, res) => {
 
 app.post('/api/chat', async (req, res) => {
   try {
-    const { userId, sessionId, messages } = req.body;
+    // ✅ ADDED `liveContext` to the destructuring
+    const { userId, sessionId, messages, liveContext } = req.body;
 
     if (!userId || !messages || messages.length === 0) {
       return res.status(400).json({ error: "Missing userId or messages" });
     }
 
-// 🔒 1. FIND THE USER & CHECK PRO LIMITS (20 Per Hour Logic)
-const user = await User.findOne({ username: userId.toLowerCase().trim() });
+    // 🔒 1. FIND THE USER & CHECK PRO LIMITS (20 Per Hour Logic)
+    const user = await User.findOne({ username: userId.toLowerCase().trim() });
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const now = new Date();
@@ -304,9 +305,9 @@ const user = await User.findOne({ username: userId.toLowerCase().trim() });
     const activeSessionId = sessionId || Date.now().toString();
     const chatTitle = messages[0].content.substring(0, 30) + (messages[0].content.length > 30 ? '...' : '');
 
-     const model = genAI.getGenerativeModel({ 
-  model: "gemini-2.5-flash",
-  systemInstruction: `You are the official AI Assistant for LifeOS, a premium productivity and lifestyle management app. You are highly intelligent, helpful, friendly, and act as a personal concierge for the user. Always use emojis naturally in your responses unless of course asked not to.
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-2.5-flash",
+      systemInstruction: `You are the official AI Assistant for LifeOS, a premium productivity and lifestyle management app. You are highly intelligent, helpful, friendly, and act as a personal concierge for the user. Always use emojis naturally in your responses unless of course asked not to.
 
 ABOUT LIFEOS:
 LifeOS helps users manage their entire life in one place. If a user asks what they can do in the app, politely explain these core features:
@@ -321,19 +322,29 @@ If a user asks about pricing, limits, or upgrades, explain that LifeOS has a fre
 
 IMPORTANT FORMATTING RULES:
 When explaining mathematics or physics, DO NOT use LaTeX, dollar signs ($), or carets (^). Use standard Unicode characters for superscripts (e.g., a² + b² = c²), subscripts, and fractions so it reads cleanly as plain text.`
-});
+    });
 
     const history = messages.slice(0, -1).map(msg => ({
       role: msg.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: msg.content }]
     }));
     
+    // ✅ Extract the raw message
     const latestMessage = messages[messages.length - 1].content;
+    
+    // 🧠 ✅ THE RAG MAGIC TRICK: Merge the secret context with their question
+    const enhancedPrompt = liveContext 
+      ? `${liveContext}\n\nUser Question: ${latestMessage}` 
+      : latestMessage;
+
     const chatSession = model.startChat({ history });
-    const result = await chatSession.sendMessage(latestMessage);
+    
+    // ✅ Send the ENHANCED prompt to Gemini
+    const result = await chatSession.sendMessage(enhancedPrompt);
     const aiResponseText = result.response.text();
 
     // 💾 3. SAVE CHAT HISTORY
+    // ✅ We still save `latestMessage` to MongoDB, NOT the enhancedPrompt, so the UI stays clean!
     await Chat.findOneAndUpdate(
       { userId: userId, sessionId: activeSessionId },
       { 
@@ -351,7 +362,7 @@ When explaining mathematics or physics, DO NOT use LaTeX, dollar signs ($), or c
     );
 
     // 📈 4. INCREMENT CHAT COUNT & SAVE
- if (!user.isPro) {
+    if (!user.isPro) {
       user.dailyChatCount = (user.dailyChatCount || 0) + 1;
       await user.save();
     }
