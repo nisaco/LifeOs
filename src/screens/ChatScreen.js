@@ -8,6 +8,7 @@ import { Feather } from '@expo/vector-icons';
 import { colors, spacing, radius, shadow } from '../utils/theme';
 import { sendMessage, getChatSessions, getChatHistory, deleteChatSession } from '../utils/gemini';
 import { format } from 'date-fns';
+import Markdown from 'react-native-markdown-display';
 
 export default function ChatScreen({ navigation }) {
   const [messages, setMessages] = useState([]);
@@ -194,7 +195,9 @@ export default function ChatScreen({ navigation }) {
                   )}
                   
                   <View style={[styles.bubble, item.role === 'user' ? styles.userBubble : styles.aiBubble]}>
-                    <Text style={[styles.bubbleText, item.role === 'user' && styles.userBubbleText]}>{item.content}</Text>
+                    <Text style={[styles.bubbleText, item.role === 'user' && styles.userBubbleText]}>
+                       {item.content}
+                    </Text>
                   </View>
                   
                   <Text style={styles.bubbleTime}>
@@ -347,3 +350,27 @@ const styles = StyleSheet.create({
   glassyDeleteBtn: { flex: 1, paddingVertical: 14, borderRadius: radius.full, backgroundColor: colors.danger, alignItems: 'center', justifyContent: 'center' },
   glassyDeleteText: { color: '#fff', fontWeight: '800', fontSize: 15 },
 });
+// Paste this right below your StyleSheet.create(...) block
+
+const baseMarkdownStyles = {
+  body: { fontSize: 16, lineHeight: 22 },
+  paragraph: { marginTop: 0, marginBottom: 8 },
+  strong: { fontWeight: 'bold' },
+  em: { fontStyle: 'italic' },
+  code_inline: { backgroundColor: 'rgba(255,255,255,0.1)', padding: 4, borderRadius: 4, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
+  fence: { backgroundColor: '#000', padding: 10, borderRadius: 8, color: '#00FF00', fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', marginTop: 8, marginBottom: 8 },
+  list_item: { marginBottom: 4 },
+  bullet_list: { marginBottom: 8 },
+  ordered_list: { marginBottom: 8 },
+};
+
+const aiMarkdownStyles = {
+  ...baseMarkdownStyles,
+  body: { ...baseMarkdownStyles.body, color: '#E5E5EA' }, // iMessage off-white
+};
+
+const userMarkdownStyles = {
+  ...baseMarkdownStyles,
+  body: { ...baseMarkdownStyles.body, color: '#FFFFFF' }, // Solid white for user blue bubble
+  code_inline: { ...baseMarkdownStyles.code_inline, backgroundColor: 'rgba(0,0,0,0.2)' },
+};
