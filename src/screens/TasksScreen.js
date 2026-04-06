@@ -10,6 +10,9 @@ import { Storage, KEYS } from '../utils/storage';
 import { Card, PrimaryButton, EmptyState, Row, Spacer, Chip } from '../components/shared';
 import { format, isToday, isTomorrow, isPast } from 'date-fns';
 
+// ✅ IMPORT NOTIFICATIONS
+import { scheduleLocalNotification } from '../utils/notifications';
+
 const PRIORITIES = ['High', 'Medium', 'Low'];
 const CATEGORIES = ['Work', 'Personal', 'Health', 'Learning', 'Other'];
 
@@ -31,12 +34,17 @@ export default function TasksScreen() {
     if (!form.title.trim()) return;
     let updated;
     if (editTask) {
-      // ✅ Added synced: false to trigger Sync Engine on Edit
       updated = tasks.map(t => t.id === editTask.id ? { ...t, ...form, synced: false } : t);
     } else {
-      // ✅ Added synced: false to trigger Sync Engine on Create
       const newTask = { ...form, id: Date.now().toString(), done: false, createdAt: new Date().toISOString(), synced: false };
       updated = [newTask, ...tasks];
+      
+      // ✅ TRIGGER NOTIFICATION: Remind them about this new task in 2 hours (7200 seconds)
+      await scheduleLocalNotification(
+        "Task Reminder 📝", 
+        `Still pending: ${form.title}. You've got this!`, 
+        7200
+      );
     }
     await Storage.set(KEYS.TASKS, updated);
     setTasks(updated);
@@ -44,7 +52,6 @@ export default function TasksScreen() {
   }
 
   async function toggleTask(id) {
-    // ✅ Added synced: false to trigger Sync Engine on Check/Uncheck
     const updated = tasks.map(t => t.id === id ? { ...t, done: !t.done, synced: false } : t);
     await Storage.set(KEYS.TASKS, updated);
     setTasks(updated);

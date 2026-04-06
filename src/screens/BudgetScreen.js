@@ -10,7 +10,9 @@ import { Storage, KEYS } from '../utils/storage';
 import { Card, PrimaryButton, EmptyState, Row, Spacer } from '../components/shared';
 import { format, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 
-// Split categories for smart filtering
+// ✅ IMPORT NOTIFICATIONS
+import { scheduleLocalNotification } from '../utils/notifications';
+
 const EXPENSE_CATEGORIES = ['Food', 'Transport', 'Bills', 'Health', 'Shopping', 'Entertainment', 'Other'];
 const INCOME_CATEGORIES = ['Salary', 'Business', 'Freelance', 'Gift', 'Investment'];
 const CATEGORY_ICONS = { Food: 'coffee', Transport: 'navigation', Bills: 'file-text', Health: 'heart', Shopping: 'shopping-bag', Entertainment: 'tv', Salary: 'briefcase', Business: 'activity', Freelance: 'code', Gift: 'gift', Investment: 'trending-up', Other: 'dollar-sign' };
@@ -41,13 +43,17 @@ export default function BudgetScreen() {
     setCurrency(savedCurrency);
   }
 
-  // ✅ SMART BUDGET ALERT LOGIC
-  const checkBudgetStatus = (newTotalSpent) => {
+  // ✅ UPDATED SMART BUDGET ALERT LOGIC WITH PUSH NOTIFICATIONS
+  const checkBudgetStatus = async (newTotalSpent) => {
     const percentage = (newTotalSpent / monthlyLimit) * 100;
     if (percentage >= 100) {
       Alert.alert("Limit Reached! 🛑", `You've spent ${currency}${newTotalSpent.toFixed(2)}. You have officially reached your ${currency}${monthlyLimit} limit!`);
+      // Trigger notification instantly (1 second)
+      await scheduleLocalNotification("Budget Exceeded! 🛑", `You've hit your ${currency}${monthlyLimit} limit for the month.`, 1);
     } else if (percentage >= 80) {
       Alert.alert("Budget Warning ⚠️", `You've used ${Math.round(percentage)}% of your monthly budget. Be careful!`);
+      // Trigger notification instantly (1 second)
+      await scheduleLocalNotification("Budget Warning ⚠️", `You are at ${Math.round(percentage)}% of your monthly budget.`, 1);
     }
   };
 
@@ -55,7 +61,6 @@ export default function BudgetScreen() {
     const amt = parseFloat(form.amount);
     if (!amt || isNaN(amt)) return;
     
-    // Check for alerts before saving
     if (form.type === 'expense') {
       const currentMonthSpent = monthEntries
         .filter(e => e.type === 'expense')
@@ -63,7 +68,6 @@ export default function BudgetScreen() {
       checkBudgetStatus(currentMonthSpent + amt);
     }
 
-    // ✅ ADDED synced: false to trigger the background Sync Engine!
     const entry = { ...form, amount: amt, id: Date.now().toString(), date: new Date().toISOString(), synced: false };
     const updated = [entry, ...entries];
     await Storage.set(KEYS.BUDGET_ENTRIES, updated);
@@ -217,7 +221,6 @@ export default function BudgetScreen() {
 
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: spacing.md }}>
               <Row style={{ gap: spacing.xs }}>
-                {/* ✅ DYNAMIC CATEGORIES BASED ON TYPE */}
                 {(form.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map(c => (
                   <TouchableOpacity
                     key={c}

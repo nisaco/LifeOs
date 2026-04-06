@@ -5,18 +5,20 @@ import {
   StyleSheet, Vibration, Modal, TextInput, Platform 
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { useAudioPlayer } from 'expo-audio';
-import { VideoView, useVideoPlayer } from 'expo-video';
+import { Audio } from 'expo-av'; // ✅ Use standard expo-av for better compatibility
 import { colors, spacing, radius, shadow } from '../utils/theme';
 import { Storage, KEYS } from '../utils/storage';
 import { Card, Row, PrimaryButton } from '../components/shared';
 import { format } from 'date-fns';
 
+// ✅ IMPORT NOTIFICATIONS
+import { scheduleLocalNotification } from '../utils/notifications';
+
 const PRESETS = [
   { label: 'Pomodoro', work: 25, break: 5, icon: 'clock' },
   { label: 'Deep Work', work: 50, break: 10, icon: 'target' },
   { label: 'Quick Sprint', work: 15, break: 3, icon: 'zap' },
-  { label: 'Custom', work: 1, break: 1, icon: 'settings' }, // Set to 1 min for easy testing!
+  { label: 'Custom', work: 1, break: 1, icon: 'settings' }, 
 ];
 
 export default function FocusScreen({ navigation }) {
@@ -31,7 +33,6 @@ export default function FocusScreen({ navigation }) {
   const [sound, setSound] = useState();
   const intervalRef = useRef(null);
 
-  // ✅ New States for the Premium Glassy Timer Modal
   const [timerModalVisible, setTimerModalVisible] = useState(false);
   const [modalData, setModalData] = useState({ title: '', message: '', nextMode: 'break' });
 
@@ -73,15 +74,18 @@ export default function FocusScreen({ navigation }) {
       setSound(sound);
       await sound.playAsync();
     } catch (e) { 
-      console.log("Audio play failed (CORS or Web block), relying on vibration:", e); 
+      console.log("Audio play failed, relying on vibration and notification sound:", e); 
     }
   }
 
   async function handleTimerEnd() {
+    // 1. Vibrate the phone (great for when phone is in pocket)
     Vibration.vibrate([0, 500, 200, 500]); 
+    
+    // 2. Play the in-app beep
     await playBeep(); 
 
-    // ✅ ADDED synced: false to trigger the background Sync Engine!
+    // 3. Save the session to local storage and flag for Sync Engine
     const session = { id: Date.now().toString(), type: mode, duration: mode === 'work' ? preset.work : preset.break, date: new Date().toISOString(), preset: preset.label, synced: false };
     const all = await Storage.get(KEYS.FOCUS_SESSIONS) || [];
     await Storage.set(KEYS.FOCUS_SESSIONS, [session, ...all].slice(0, 100));
@@ -91,9 +95,13 @@ export default function FocusScreen({ navigation }) {
     const title = nextMode === 'break' ? 'Break Time!' : 'Back to Work!';
     const msg = mode === 'work' ? 'Great job! Time to step away and take a break.' : 'Break is over! Time to get back to focus.';
     
-    // ✅ Trigger our custom glassy modal instead of native alerts
+    // 4. Trigger our custom glassy modal
     setModalData({ title, message: msg, nextMode });
     setTimerModalVisible(true);
+
+    // ✅ 5. TRIGGER PUSH NOTIFICATION
+    // This sends an immediate push alert (1 second delay) that will also trigger the default system notification sound!
+    await scheduleLocalNotification(title, msg, 1);
   }
 
   function switchMode(newMode) {
@@ -124,7 +132,6 @@ export default function FocusScreen({ navigation }) {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: spacing.md, alignItems: 'center', paddingBottom: 100 }}>
         
-        {/* Presets */}
         <Row style={{ gap: spacing.sm, marginBottom: spacing.xl }}>
           {PRESETS.map(p => (
             <TouchableOpacity key={p.label} onPress={() => {setPreset(p); resetTimer(p, 'work');}}
@@ -135,7 +142,6 @@ export default function FocusScreen({ navigation }) {
           ))}
         </Row>
 
-        {/* Timer UI */}
         <View style={[styles.modeBadge, { backgroundColor: mode === 'work' ? colors.focus + '15' : colors.health + '15' }]}>
           <Feather name={mode === 'work' ? 'zap' : 'coffee'} size={16} color={mode === 'work' ? colors.focus : colors.health} style={{ marginRight: 8 }} />
           <Text style={[styles.modeText, { color: mode === 'work' ? colors.focus : colors.health }]}>{mode === 'work' ? 'WORK SESSION' : 'BREAK TIME'}</Text>
@@ -147,7 +153,6 @@ export default function FocusScreen({ navigation }) {
           </View>
         </View>
 
-        {/* Controls */}
         <Row style={{ gap: spacing.lg, marginTop: spacing.xl }}>
           <TouchableOpacity onPress={() => resetTimer()} style={styles.controlBtn}>
             <Feather name="rotate-ccw" size={24} color={colors.textSecondary} />
@@ -160,7 +165,6 @@ export default function FocusScreen({ navigation }) {
           </TouchableOpacity>
         </Row>
 
-        {/* Break Activity */}
         <View style={{ alignSelf: 'stretch', marginTop: spacing.xxl }}>
           <Text style={styles.sectionLabel}>Need a break?</Text>
           <TouchableOpacity onPress={() => navigation.navigate('Game')} activeOpacity={0.8}>
@@ -180,7 +184,6 @@ export default function FocusScreen({ navigation }) {
         </View>
       </ScrollView>
 
-      {/* Smart Scheduler Modal */}
       <Modal visible={showScheduleModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
@@ -270,7 +273,6 @@ export default function FocusScreen({ navigation }) {
           </View>
         </View>
       </Modal>
-
     </View>
   );
 }
@@ -298,8 +300,6 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 22, fontWeight: '900', color: colors.textPrimary },
   modalInput: { backgroundColor: colors.bgCard, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, color: colors.textPrimary, fontSize: 24, fontWeight: '800', padding: spacing.md, textAlign: 'center' },
   schedulePreview: { backgroundColor: colors.bg, padding: spacing.md, borderRadius: radius.md, marginTop: spacing.md, borderWidth: 1, borderColor: colors.border },
-
-  /* ✅ Premium Glassy Modal Styles */
   glassyOverlay: { 
     flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', 
     justifyContent: 'center', alignItems: 'center', padding: spacing.xl,
