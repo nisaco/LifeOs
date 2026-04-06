@@ -39,7 +39,9 @@ const userSchema = new mongoose.Schema({
   isPro: { type: Boolean, default: false },
   subscriptionEnd: { type: Date, default: null },
   dailyChatCount: { type: Number, default: 0 },
-  lastChatReset: { type: Date, default: Date.now }
+  lastChatReset: { type: Date, default: Date.now },
+  tasks: { type: Array, default: [] },
+  budget: { type: Array, default: [] }
 });
 
 const User = mongoose.model('User', userSchema);
@@ -176,6 +178,61 @@ app.post('/api/paystack/webhook', async (req, res) => {
     }
   }
   res.sendStatus(200);
+});
+
+// 🔄 OFFLINE SYNC ENGINE ROUTE
+app.post('/api/sync', async (req, res) => {
+  try {
+    const { userId, tasks, budget } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: "Missing User ID" });
+    }
+
+    // 1. Find the user in MongoDB
+    const user = await User.findOne({ username: userId.toLowerCase().trim() });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // 2. Merge incoming Tasks
+    if (tasks && tasks.length > 0) {
+      tasks.forEach(incomingTask => {
+        // Check if task already exists in the database
+        const existingIndex = user.tasks.findIndex(t => t.id === incomingTask.id);
+        if (existingIndex >= 0) {
+          user.tasks[existingIndex] = incomingTask; // Update existing
+        } else {
+          user.tasks.push(incomingTask); // Add new
+        }
+      });
+      // Mark the array as modified so Mongoose knows to save it
+      user.markModified('tasks'); 
+    }
+
+    // 3. Merge incoming Budget Entries
+    if (budget && budget.length > 0) {
+      budget.forEach(incomingEntry => {
+        const existingIndex = user.budget.findIndex(b => b.id === incomingEntry.id);
+        if (existingIndex >= 0) {
+          user.budget[existingIndex] = incomingEntry; // Update existing
+        } else {
+          user.budget.push(incomingEntry); // Add new
+        }
+      });
+      user.markModified('budget');
+    }
+
+    // 4. Save the safely merged data!
+    await user.save();
+
+    console.log(`✅ Synced ${tasks?.length || 0} tasks and ${budget?.length || 0} budget items for ${userId}`);
+    res.json({ success: true, message: "Data synced securely to the cloud." });
+
+  } catch (error) {
+    console.error("Sync Error:", error);
+    res.status(500).json({ error: "Failed to sync data" });
+  }
 });
 
 // ==========================================
