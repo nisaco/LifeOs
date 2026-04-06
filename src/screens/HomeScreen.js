@@ -101,7 +101,7 @@ export default function HomeScreen({ navigation }) {
       const response = await fetch('https://lifeos-api-js9i.onrender.com/api/paystack/initialize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: userEmail, amount: 3, currency: "USD" }) 
+        body: JSON.stringify({ email: userEmail, amount: 25, currency: "GHS" }) 
       });
 
       const data = await response.json();
@@ -197,7 +197,7 @@ export default function HomeScreen({ navigation }) {
                   <Text style={styles.proSub}>Unlimited AI, Cloud Backup & Reports</Text>
                 </View>
                 <View style={styles.priceBadge}>
-                   <Text style={styles.proPrice}>$3/mo</Text>
+                   <Text style={styles.proPrice}>GH₵25</Text>
                 </View>
               </Row>
             </Card>

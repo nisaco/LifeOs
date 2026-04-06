@@ -221,7 +221,7 @@ app.post('/api/chat', async (req, res) => {
     const activeSessionId = sessionId || Date.now().toString();
     const chatTitle = messages[0].content.substring(0, 30) + (messages[0].content.length > 30 ? '...' : '');
 
-    const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" }); 
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); 
 
     const history = messages.slice(0, -1).map(msg => ({
       role: msg.role === 'assistant' ? 'model' : 'user',
