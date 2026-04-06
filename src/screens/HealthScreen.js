@@ -4,13 +4,12 @@ import {
   View, Text, TouchableOpacity, ScrollView,
   StyleSheet, Modal, TextInput, Alert,
 } from 'react-native';
-import { Feather } from '@expo/vector-icons'; // ✅ Imported
+import { Feather } from '@expo/vector-icons'; 
 import { colors, spacing, radius, shadow } from '../utils/theme';
 import { Storage, KEYS } from '../utils/storage';
 import { Card, PrimaryButton, EmptyState, Row, Spacer } from '../components/shared';
 import { format, subDays, eachDayOfInterval } from 'date-fns';
 
-// ✅ Swapped emojis for Feather icon names
 const HABIT_ICONS = ['droplet', 'activity', 'heart', 'book', 'coffee', 'moon', 'sun', 'star', 'target', 'edit-2'];
 const HABIT_COLORS = [colors.health, colors.tasks, colors.primary, colors.budget, colors.secondary];
 
@@ -32,7 +31,16 @@ export default function HealthScreen() {
 
   async function saveHabit() {
     if (!form.name.trim()) return;
-    const habit = { ...form, id: Date.now().toString(), createdAt: new Date().toISOString(), target: parseInt(form.target) || 1 };
+    
+    // ✅ ADDED: synced: false flag for your offline engine
+    const habit = { 
+      ...form, 
+      id: Date.now().toString(), 
+      createdAt: new Date().toISOString(), 
+      target: parseInt(form.target) || 1,
+      synced: false 
+    };
+    
     const updated = [...habits, habit];
     await Storage.set(KEYS.HABITS, updated);
     setHabits(updated);
