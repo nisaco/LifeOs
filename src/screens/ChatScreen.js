@@ -94,14 +94,20 @@ export default function ChatScreen({ navigation }) {
         loadSidebar(); 
       }
     } catch (err) {
+      // Remove the user's message so it doesn't stay on screen!
       setMessages(prev => prev.slice(0, -1));
 
       if (err.message && err.message.includes('LIMIT_REACHED')) {
+        // Extract the time we attached in gemini.js
+        const nextAllowedStr = err.message.split('|')[1];
+        const nextTime = new Date(nextAllowedStr);
+        const formattedTime = format(nextTime, 'h:mm a'); // Formats to "2:30 PM"
+
         Alert.alert(
-          "Hourly Limit Reached ⏳",
-          "You've used your 20 free AI messages for this hour. Upgrade to Pro for unlimited access!",
+          "Out of Free Messages ⏳",
+          `You are out of free messages. Wait till ${formattedTime} to chat again, or Upgrade to Pro for unlimited access!`,         
           [
-            { text: "Wait an hour", style: "cancel" },
+            { text: "Okay", style: "cancel" },
             { text: "Upgrade Now", onPress: () => navigation.navigate('Home') }
           ]
         );

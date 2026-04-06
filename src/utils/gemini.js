@@ -22,19 +22,20 @@ export async function sendMessage(messages, sessionId) {
     const data = await response.json();
     
     // 🛑 THE UPDATED ALARM: Throw specific errors so ChatScreen catches them!
-    if (!response.ok) {
+   if (!response.ok) {
       if (data.error === "LIMIT_REACHED") {
-        throw new Error("LIMIT_REACHED");
+        // We attach the date to the error message so ChatScreen can read it
+        throw new Error(`LIMIT_REACHED|${data.nextAllowed}`);
       }
       if (data.error === "API_BUSY") {
         throw new Error("The AI is thinking a little too hard right now. Please wait 30 seconds and try again!");
       }
       throw new Error(data.error || "Failed to communicate with the server.");
     }
-    
     return { reply: data.reply, newSessionId: data.sessionId, chatsLeft: data.chatsLeft };
   } catch (error) { throw error; }
 }
+
 
 export async function getChatSessions() {
   try {
