@@ -81,7 +81,8 @@ export default function FocusScreen({ navigation }) {
     Vibration.vibrate([0, 500, 200, 500]); 
     await playBeep(); 
 
-    const session = { id: Date.now().toString(), type: mode, duration: mode === 'work' ? preset.work : preset.break, date: new Date().toISOString(), preset: preset.label };
+    // ✅ ADDED synced: false to trigger the background Sync Engine!
+    const session = { id: Date.now().toString(), type: mode, duration: mode === 'work' ? preset.work : preset.break, date: new Date().toISOString(), preset: preset.label, synced: false };
     const all = await Storage.get(KEYS.FOCUS_SESSIONS) || [];
     await Storage.set(KEYS.FOCUS_SESSIONS, [session, ...all].slice(0, 100));
     await loadSessions();

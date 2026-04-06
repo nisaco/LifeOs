@@ -63,7 +63,8 @@ export default function BudgetScreen() {
       checkBudgetStatus(currentMonthSpent + amt);
     }
 
-    const entry = { ...form, amount: amt, id: Date.now().toString(), date: new Date().toISOString() };
+    // ✅ ADDED synced: false to trigger the background Sync Engine!
+    const entry = { ...form, amount: amt, id: Date.now().toString(), date: new Date().toISOString(), synced: false };
     const updated = [entry, ...entries];
     await Storage.set(KEYS.BUDGET_ENTRIES, updated);
     setEntries(updated);

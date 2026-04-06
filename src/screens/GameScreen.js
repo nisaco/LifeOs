@@ -7,6 +7,8 @@ import { PrimaryButton, Card, Row, Chip } from '../components/shared';
 import { Storage } from '../utils/storage'; 
 // ✅ Import Socket.io Client
 import { io } from 'socket.io-client';
+// ✅ Import NetInfo for Offline Detection
+import NetInfo from '@react-native-community/netinfo';
 
 const DIFFICULTIES = ['Easy', 'Medium', 'Hard'];
 // ✅ PASTE YOUR RENDER URL HERE
@@ -29,46 +31,66 @@ export default function GameScreen({ navigation }) { // ✅ ADDED NAVIGATION PRO
 
   // ✅ New State for Multiplayer Role
   const [playerSymbol, setPlayerSymbol] = useState(null); // 'X' or 'O'
+  
+  // ✅ New State for Offline Detection
+  const [isOffline, setIsOffline] = useState(false);
+
+  // ✅ OFFLINE LISTENER LOGIC
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener(state => {
+      const offline = !state.isConnected;
+      setIsOffline(offline);
+      
+      // If they go offline while trying to play multiplayer, force them back to AI
+      if (offline && playMode === 'multi') {
+        setPlayMode('ai');
+        fullReset();
+        Alert.alert("You're Offline 📡", "Multiplayer connection lost. Switching to Solo vs AI mode!");
+      }
+    });
+
+    return () => unsubscribe();
+  }, [playMode]);
 
   // ✅ SOCKET CONNECTION LOGIC
-useEffect(() => {
+  useEffect(() => {
     // ✅ ADDED: THIS LOADS YOUR PRO STATUS
     const checkPro = async () => {
-  const status = await Storage.get('lifeos_is_pro');
-  setIsPro(!!status);
-};
-  checkPro();
+      const status = await Storage.get('lifeos_is_pro');
+      setIsPro(!!status);
+    };
+    checkPro();
 
-  if (playMode === 'multi') {
-    // 1. Establish/Reuse Connection
-    if (!socket || !socket.connected) {
-      socket = io(SOCKET_URL, { transports: ['websocket'] });
-    }
+    if (playMode === 'multi' && !isOffline) {
+      // 1. Establish/Reuse Connection
+      if (!socket || !socket.connected) {
+        socket = io(SOCKET_URL, { transports: ['websocket'] });
+      }
 
-    // 2. Clear old listeners to prevent "Ghost Turns"
-    socket.off('match_started');
-    socket.off('opponent_moved');
-
-    socket.on('match_started', (data) => {
-      setBoard(Array(9).fill(null));
-      setXIsNext(true); // Always start with X
-      setPlayerSymbol(data.symbol);
-      setMultiState('playing');
-      console.log("Match Started! I am:", data.symbol);
-    });
-
-    socket.on('opponent_moved', (data) => {
-      // ✅ Critical: Update board AND turn state based on opponent's action
-      setBoard(data.board);
-      setXIsNext(data.xIsNext); 
-    });
-
-    return () => {
+      // 2. Clear old listeners to prevent "Ghost Turns"
       socket.off('match_started');
       socket.off('opponent_moved');
-    };
-  }
-}, [playMode]); // Only re-run if mode changes
+
+      socket.on('match_started', (data) => {
+        setBoard(Array(9).fill(null));
+        setXIsNext(true); // Always start with X
+        setPlayerSymbol(data.symbol);
+        setMultiState('playing');
+        console.log("Match Started! I am:", data.symbol);
+      });
+
+      socket.on('opponent_moved', (data) => {
+        // ✅ Critical: Update board AND turn state based on opponent's action
+        setBoard(data.board);
+        setXIsNext(data.xIsNext); 
+      });
+
+      return () => {
+        socket.off('match_started');
+        socket.off('opponent_moved');
+      };
+    }
+  }, [playMode, isOffline]); // Only re-run if mode or network changes
 
   const calculateWinner = (squares) => {
     const lines = [[0,1,2], [3,4,5], [6,7,8], [0,3,6], [1,4,7], [2,5,8], [0,4,8], [2,4,6]];
@@ -144,7 +166,7 @@ useEffect(() => {
   const nextTurn = !xIsNext;
   setXIsNext(nextTurn); // Switch locally
 
-  if (playMode === 'multi') {
+  if (playMode === 'multi' && !isOffline) {
     // ✅ Tell the server to tell the opponent to switch turns
     socket.emit('make_move', {
       room: myCode || joinCode,
@@ -155,7 +177,7 @@ useEffect(() => {
 };
 
   const fullReset = () => {
-    if (socket && playMode === 'multi') {
+    if (socket && playMode === 'multi' && !isOffline) {
        socket.emit('leave_room', myCode || joinCode);
     }
     setBoard(Array(9).fill(null));
@@ -181,6 +203,10 @@ useEffect(() => {
 
   // ✅ FIXED MULTIPLAYER ACTIONS
   const createMultiplayerMatch = () => {
+    if (isOffline) {
+      Alert.alert("Offline", "You need an internet connection to host a match.");
+      return;
+    }
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
     setMyCode(code);
     setMultiState('waiting');
@@ -188,6 +214,10 @@ useEffect(() => {
   };
 
   const handleJoinMatch = () => {
+    if (isOffline) {
+      Alert.alert("Offline", "You need an internet connection to join a match.");
+      return;
+    }
     if (joinCode.length === 6) {
       socket.emit('join_room', joinCode);
       setMultiState('waiting');
@@ -227,8 +257,18 @@ useEffect(() => {
             <Feather name="cpu" size={18} color={playMode === 'ai' ? '#fff' : colors.textSecondary} />
             <Text style={[styles.modeText, playMode === 'ai' && { color: '#fff' }]}>Solo vs AI</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => { setPlayMode('multi'); fullReset(); }} style={[styles.modeBtn, playMode === 'multi' && styles.modeBtnActive]}>
-            <Feather name="globe" size={18} color={playMode === 'multi' ? '#fff' : colors.textSecondary} />
+          <TouchableOpacity 
+            onPress={() => { 
+              if (isOffline) {
+                Alert.alert("Offline Mode", "You need an internet connection to play online matches.");
+              } else {
+                setPlayMode('multi'); 
+                fullReset(); 
+              }
+            }} 
+            style={[styles.modeBtn, playMode === 'multi' && styles.modeBtnActive, isOffline && { opacity: 0.5 }]}
+          >
+            <Feather name={isOffline ? "wifi-off" : "globe"} size={18} color={playMode === 'multi' ? '#fff' : colors.textSecondary} />
             <Text style={[styles.modeText, playMode === 'multi' && { color: '#fff' }]}>Online Match</Text>
           </TouchableOpacity>
         </Row>

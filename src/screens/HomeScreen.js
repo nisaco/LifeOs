@@ -1,9 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert, Platform, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert, Platform, ActivityIndicator, StatusBar } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 // ✅ Added Linear Gradient and WebBrowser
 import { LinearGradient } from 'expo-linear-gradient';
 import * as WebBrowser from 'expo-web-browser';
+
+// ✅ Added Network Listener & Focus Effect for Offline-First Architecture
+import NetInfo from '@react-native-community/netinfo';
+import { useFocusEffect } from '@react-navigation/native';
 
 import { colors, spacing, radius, shadow } from '../utils/theme';
 import { Card, Row } from '../components/shared';
@@ -20,9 +24,19 @@ export default function HomeScreen({ navigation }) {
   const [isPro, setIsPro] = useState(false); 
   const [payLoading, setPayLoading] = useState(false);
   const [syncLoading, setSyncLoading] = useState(true); 
+  
+  // ✅ New Offline State
+  const [isOffline, setIsOffline] = useState(false);
+
+  // 1. Listen for Network Changes
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener(state => {
+      setIsOffline(!state.isConnected);
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
-    loadDashboardData();
     calculateGreeting();
     syncUserStatus();
   }, []);
@@ -56,6 +70,13 @@ export default function HomeScreen({ navigation }) {
     }
   }
 
+  // ✅ 2. Instantly update dashboard data every time the screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      loadDashboardData();
+    }, [])
+  );
+
   async function loadDashboardData() {
     const name = await Storage.get('lifeos_user_name') || 'User';
     const savedCurrency = await Storage.get('lifeos_budget_currency') || '₵';
@@ -79,11 +100,16 @@ export default function HomeScreen({ navigation }) {
   const onRefresh = async () => {
     setRefreshing(true);
     await loadDashboardData();
-    await syncUserStatus(); 
+    if (!isOffline) await syncUserStatus(); // Only attempt sync if online
     setRefreshing(false);
   };
 
   const handleUpgrade = async () => {
+    if (isOffline) {
+      Alert.alert("Offline", "You need an internet connection to upgrade to Pro.");
+      return;
+    }
+
     const userEmail = await Storage.get('lifeos_user_email');
     
     if (!userEmail) {
@@ -138,7 +164,17 @@ export default function HomeScreen({ navigation }) {
   return (
     // ✅ Replaced View with LinearGradient for a deep, sophisticated dark mode background
     <LinearGradient colors={['#0F172A', '#000000']} style={styles.container}>
-      <View style={styles.header}>
+      <StatusBar barStyle="light-content" />
+      
+      {/* ✅ Offline Banner */}
+      {isOffline && (
+        <View style={styles.offlineBanner}>
+          <Feather name="wifi-off" size={14} color="#FFF" style={{ marginRight: 6 }} />
+          <Text style={styles.offlineText}>You are currently offline. Local data only.</Text>
+        </View>
+      )}
+
+      <View style={[styles.header, isOffline && { paddingTop: spacing.md }]}>
         <View>
           <Text style={styles.greeting}>{greeting}, {userName}</Text>
           <Text style={styles.date}>{format(new Date(), 'EEEE, MMMM do')}</Text>
@@ -215,7 +251,16 @@ export default function HomeScreen({ navigation }) {
           <QuickAction icon="activity" label="Health" color={colors.health} screen="Health" subText="Log data" />
         </View>
 
-        <TouchableOpacity activeOpacity={0.9} onPress={() => navigation.navigate('Chat')}>
+        <TouchableOpacity 
+          activeOpacity={0.9} 
+          onPress={() => {
+            if (isOffline) {
+              Alert.alert("Offline", "You need an internet connection to use the AI Assistant.");
+            } else {
+              navigation.navigate('Chat');
+            }
+          }}
+        >
           <Card style={styles.bannerCard}>
             <Row>
               <View style={styles.bannerIcon}>
@@ -237,6 +282,11 @@ export default function HomeScreen({ navigation }) {
 const styles = StyleSheet.create({
   // ✅ Removed background color so the gradient can shine through
   container: { flex: 1 },
+  
+  // ✅ Added Offline Banner Styles
+  offlineBanner: { backgroundColor: colors.danger, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8, paddingTop: Platform.OS === 'ios' ? 48 : StatusBar.currentHeight || 24 },
+  offlineText: { color: '#FFF', fontSize: 12, fontWeight: '700' },
+
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.md, paddingTop: spacing.xxl, paddingBottom: spacing.lg },
   greeting: { fontSize: 24, fontWeight: '900', color: colors.textPrimary, letterSpacing: -0.5 },
   date: { fontSize: 14, color: colors.textSecondary, marginTop: 4, fontWeight: '500' },
