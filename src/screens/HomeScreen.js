@@ -240,6 +240,25 @@ export default function HomeScreen({ navigation }) {
           </TouchableOpacity>
         )}
 
+        {/* ⚡ AJENTERPRISE QUICK ACTION CARD (ADDED HERE) */}
+        <TouchableOpacity 
+            style={{
+                flexDirection: 'row', alignItems: 'center', backgroundColor: colors.cardBg, 
+                padding: 20, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border,
+                marginBottom: spacing.lg, shadowColor: '#000', shadowOpacity: 0.05, elevation: 2
+            }}
+            onPress={() => navigation.navigate('DataScreen')}
+        >
+            <View style={{ width: 50, height: 50, borderRadius: 15, backgroundColor: '#00987920', alignItems: 'center', justifyContent: 'center', marginRight: 15 }}>
+                <Feather name="wifi" size={24} color="#009879" />
+            </View>
+            <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 18, fontWeight: '800', color: colors.textPrimary }}>Need Data?</Text>
+                <Text style={{ fontSize: 13, color: colors.textMuted, fontWeight: '500', marginTop: 2 }}>Instant top-up via AJEnterprise</Text>
+            </View>
+            <Feather name="chevron-right" size={24} color={colors.textMuted} />
+        </TouchableOpacity>
+
         <Text style={styles.sectionTitle}>Life Modules</Text>
         
         <View style={styles.grid}>
