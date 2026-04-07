@@ -11,37 +11,29 @@ import { Storage } from '../utils/storage';
 // ==========================================
 const PRICING = {
     "MTN": [
-        { id: '1GB', name: '1GB', price: 6.00 }, { id: '2GB', name: '2GB', price: 11.00 },
-        { id: '3GB', name: '3GB', price: 17.00 }, { id: '4GB', name: '4GB', price: 22.00 }, 
-        { id: '5GB', name: '5GB', price: 30.00 }, { id: '6GB', name: '6GB', price: 36.00 }, 
-        { id: '7GB', name: '7GB', price: 39.00 }, { id: '8GB', name: '8GB', price: 43.00 },
-        { id: '10GB', name: '10GB', price: 49.00 }, { id: '15GB', name: '15GB', price: 75.00 }, 
-        { id: '20GB', name: '20GB', price: 100.00 }, { id: '25GB', name: '25GB', price: 128.00 }, 
-        { id: '30GB', name: '30GB', price: 150.00 }, { id: '40GB', name: '40GB', price: 195.00 },
-        { id: '50GB', name: '50GB', price: 248.00 }
-    ],
-    "AirtelTigo": [
-        { id: '1GB', name: '1GB', price: 6.00 }, { id: '2GB', name: '2GB', price: 10.00 }, 
-        { id: '3GB', name: '3GB', price: 14.00 }, { id: '4GB', name: '4GB', price: 22.00 }, 
-        { id: '5GB', name: '5GB', price: 26.00 }, { id: '6GB', name: '6GB', price: 30.00 },  
-        { id: '7GB', name: '7GB', price: 34.00 }, { id: '8GB', name: '8GB', price: 38.00 }, 
-        { id: '9GB', name: '9GB', price: 40.00 }, { id: '10GB', name: '10GB', price: 49.00 }, 
-        { id: '12GB', name: '12GB', price: 53.00 }, { id: '15GB', name: '15GB', price: 61.00 },
-        { id: '20GB', name: '20GB', price: 85.00 }
-    ],
-    "Telecel": [
-        { id: '5GB', name: '5GB', price: 29.00 }, { id: '10GB', name: '10GB', price: 49.20 }, 
-        { id: '15GB', name: '15GB', price: 80.00 }, { id: '20GB', name: '20GB', price: 100.00 }, 
-        { id: '25GB', name: '25GB', price: 120.00 }, { id: '30GB', name: '30GB', price: 123.00 },
-        { id: '40GB', name: '40GB', price: 175.50 }, { id: '50GB', name: '50GB', price: 195.00 }, 
-        { id: '100GB', name: '100GB', price: 400.00}
-    ],
-    "AT-Big Time": [
-        { id: '30GB', name: '30GB', price: 85.00 }, { id: '40GB', name: '40GB', price: 103.00 }, 
-        { id: '50GB', name: '50GB', price: 120.00 }, { id: '60GB', name: '60GB', price: 160.00 }, 
-        { id: '80GB', name: '80GB', price: 200.00 }, { id: '100GB', name: '100GB', price: 240.00 }, 
-        { id: '200GB', name: '200GB', price: 400.00}
-    ]
+            { id: '1GB', name: '1GB', price: 4.70 }, { id: '2GB', name: '2GB', price: 9.60 }, { id: '3GB', name: '3GB', price: 14.50 }, 
+            { id: '4GB', name: '4GB', price: 19.60 }, { id: '5GB', name: '5GB', price: 24.00 }, { id: '6GB', name: '6GB', price: 28.00 }, 
+            { id: '8GB', name: '8GB', price: 36.00 }, { id: '10GB', name: '10GB', price: 43.00 }, { id: '15GB', name: '15GB', price: 63.50 },
+            { id: '20GB', name: '20GB', price: 85.00 }, { id: '25GB', name: '25GB', price: 105.00 }, { id: '30GB', name: '30GB', price: 124.00 },
+            { id: '40GB', name: '40GB', price: 164.00 }, { id: '50GB', name: '50GB', price: 205.00 }
+        ],
+        "AirtelTigo": [
+            { id: '1GB', name: '1GB', price: 4.40 }, { id: '2GB', name: '2GB', price: 8.80 }, { id: '3GB', name: '3GB', price: 13.20 },  
+            { id: '4GB', name: '4GB', price: 18.00 }, { id: '5GB', name: '5GB', price: 23.00 }, { id: '6GB', name: '6GB', price: 27.00 },  
+            { id: '7GB', name: '7GB', price: 31.00 }, { id: '8GB', name: '8GB', price: 36.00 }, { id: '9GB', name: '9GB', price: 39.50 },  
+            { id: '10GB', name: '10GB', price: 42.00 }, { id: '12GB', name: '12GB', price: 50.00 }, { id: '15GB', name: '15GB', price: 62.00 },
+            { id: '20GB', name: '20GB', price: 84.00 }
+        ],
+        "Telecel": [
+            { id: '5GB', name: '5GB', price: 25.00 }, { id: '10GB', name: '10GB', price: 43.00 }, { id: '15GB', name: '15GB', price: 63.00 }, 
+            { id: '20GB', name: '20GB', price: 83.20 }, { id: '25GB', name: '25GB', price: 102.00 }, { id: '30GB', name: '30GB', price: 120.00 },
+            { id: '40GB', name: '40GB', price: 160.00 }, { id: '50GB', name: '50GB', price: 195.00 }, { id: '100GB', name: '100GB', price: 400.00}
+        ],
+         "AT-Big Time": [
+            { id: '30GB', name: '30GB', price: 85.00 }, { id: '40GB', name: '40GB', price: 103.00 }, { id: '50GB', name: '50GB', price: 120.00 }, 
+            { id: '60GB', name: '60GB', price: 160.00 }, { id: '80GB', name: '80GB', price: 200.00 },
+            { id: '100GB', name: '100GB', price: 240.00 }, { id: '200GB', name: '200GB', price: 400.00}
+        ]
 };
 
 const NETWORKS = Object.keys(PRICING);
