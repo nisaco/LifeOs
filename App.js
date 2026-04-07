@@ -1,4 +1,3 @@
-// App.js
 import React, { useState, useEffect } from 'react'; 
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -15,8 +14,9 @@ import HealthScreen from './src/screens/HealthScreen';
 import FocusScreen from './src/screens/FocusScreen';
 import GameScreen from './src/screens/GameScreen';
 import WelcomeScreen from './src/screens/WelcomeScreen'; 
-import AuthScreen from './src/screens/AuthScreen'; // ✅ This is the correct import
-import DataScreen from './src/screens/DataScreen'; // Adjust the path if your folders are different
+import AuthScreen from './src/screens/AuthScreen'; 
+import DataScreen from './src/screens/DataScreen'; 
+
 // Utility Imports
 import { colors } from './src/utils/theme';
 import { Storage } from './src/utils/storage'; 
@@ -34,7 +34,12 @@ const TAB_ICONS = {
 };
 
 function TabIcon({ name, focused }) {
-  const { icon, label, color } = TAB_ICONS[name];
+  // ✅ SAFETY FIX: If the screen isn't in our icon list, don't crash! Just return nothing.
+  const tabInfo = TAB_ICONS[name];
+  if (!tabInfo) return null; 
+
+  const { icon, label, color } = tabInfo;
+  
   return (
     <View style={{ alignItems: 'center', justifyContent: 'center', paddingTop: 12 }}>
       <Feather name={icon} size={22} color={focused ? color : colors.textMuted} />
@@ -73,7 +78,6 @@ export default function App() {
     );
   }
 
-  // ✅ FIXED: Changed <SignupScreen /> to <AuthScreen />
   if (!isAuthenticated) {
     return (
       <>
@@ -108,7 +112,7 @@ export default function App() {
             borderTopWidth: 1,
             height: 72,
             paddingBottom: 12,
-            tabBarHideOnKeyboard: true, // Prevents tab bar from pushing up on web
+            tabBarHideOnKeyboard: true, 
           },
           tabBarIcon: ({ focused }) => (
             <TabIcon name={route.name} focused={focused} />
@@ -122,7 +126,17 @@ export default function App() {
         <Tab.Screen name="Health" component={HealthScreen} />
         <Tab.Screen name="Focus"  component={FocusScreen} />
         <Tab.Screen name="Game"   component={GameScreen} />
-        <Tab.Screen name="Data"   component={DataScreen} />
+        
+        {/* ✅ FIXED: Changed name to "DataScreen" to match HomeScreen */}
+        {/* ✅ FIXED: Added options to completely hide it from the bottom bar */}
+        <Tab.Screen 
+            name="DataScreen" 
+            component={DataScreen} 
+            options={{
+                tabBarButton: () => null, // Completely hides the icon from the bottom bar
+                tabBarStyle: { display: 'none' } // Hides the entire bar when viewing this screen
+            }}
+        />
       </Tab.Navigator>
     </NavigationContainer>
   );
