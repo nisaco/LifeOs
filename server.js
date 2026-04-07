@@ -131,15 +131,17 @@ app.get('/api/user/:userId', async (req, res) => {
 
 app.post('/api/paystack/initialize', async (req, res) => {
   try {
-    const { email, amount } = req.body; 
+    // ✅ Updated to accept dynamic metadata from DataScreen
+    const { email, amount, metadata } = req.body; 
 
     const response = await axios.post(
       'https://api.paystack.co/transaction/initialize',
       {
         email: email,
         amount: amount * 100, 
-        currency: "GHS", // 
-        metadata: {
+        currency: "GHS", 
+        // ✅ Pass custom metadata if provided, otherwise default to Pro Upgrade
+        metadata: metadata || {
           custom_fields: [{ display_name: "Service", variable_name: "service", value: "LifeOS Pro" }]
         }
       },
@@ -166,15 +168,44 @@ app.post('/api/paystack/webhook', async (req, res) => {
   if (hash === req.headers['x-paystack-signature']) {
     const event = req.body;
     if (event.event === 'charge.success') {
-      const userEmail = event.data.customer.email;
-      const expiryDate = new Date();
-      expiryDate.setDate(expiryDate.getDate() + 30); 
+      const metadata = event.data.metadata;
 
-      await User.findOneAndUpdate(
-        { email: userEmail },
-        { isPro: true, subscriptionEnd: expiryDate }
-      );
-      console.log(`✅ User ${userEmail} upgraded to PRO via Paystack`);
+      // 🌟 CHECK 1: Is this a Data Purchase via AJEnterprise?
+      if (metadata && metadata.service === "DATA_TOPUP") {
+          const { phone, network, bundleId } = metadata;
+          console.log(`✅ Payment received for Data. Sending ${bundleId} to ${phone}...`);
+          
+          try {
+              // Fire request to your AJENTERPRISE API
+              const ajResponse = await axios.post('https://ajenterprise.onrender.com/api/v1/dispense', {
+                  network: network,
+                  phone: phone,
+                  plan_id: bundleId,
+                  reference: event.data.reference // Use Paystack ref to prevent double-spending
+              }, {
+                  headers: { 
+                      'x-api-key': process.env.AJ_API_KEY,
+                      'Content-Type': 'application/json'
+                  }
+              });
+              
+              console.log(`📡 Data successfully dispensed via AJEnterprise:`, ajResponse.data);
+          } catch (error) {
+              console.error("❌ Failed to dispense via AJ API:", error.response ? error.response.data : error.message);
+          }
+      } 
+      // 🌟 CHECK 2: Otherwise, it's a LifeOS Pro Upgrade
+      else {
+          const userEmail = event.data.customer.email;
+          const expiryDate = new Date();
+          expiryDate.setDate(expiryDate.getDate() + 30); 
+
+          await User.findOneAndUpdate(
+            { email: userEmail },
+            { isPro: true, subscriptionEnd: expiryDate }
+          );
+          console.log(`✅ User ${userEmail} upgraded to PRO via Paystack`);
+      }
     }
   }
   res.sendStatus(200);
