@@ -16,7 +16,7 @@ import FocusScreen from './src/screens/FocusScreen';
 import GameScreen from './src/screens/GameScreen';
 import WelcomeScreen from './src/screens/WelcomeScreen'; 
 import AuthScreen from './src/screens/AuthScreen'; // ✅ This is the correct import
-
+import DataScreen from './src/screens/DataScreen'; // Adjust the path if your folders are different
 // Utility Imports
 import { colors } from './src/utils/theme';
 import { Storage } from './src/utils/storage'; 
