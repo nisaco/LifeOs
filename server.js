@@ -133,16 +133,17 @@ app.get('/api/user/:userId', async (req, res) => {
 
 app.post('/api/paystack/initialize', async (req, res) => {
   try {
-    // ✅ Updated to accept dynamic metadata from DataScreen
     const { email, amount, metadata } = req.body; 
+
+    // ✅ FIX: Use Math.round to ensure we send a perfect Integer to Paystack
+    const amountInPesewas = Math.round(parseFloat(amount) * 100);
 
     const response = await axios.post(
       'https://api.paystack.co/transaction/initialize',
       {
         email: email,
-        amount: amount * 100, 
+        amount: amountInPesewas, // ✅ Now a guaranteed whole number
         currency: "GHS", 
-        // ✅ Pass custom metadata if provided, otherwise default to Pro Upgrade
         metadata: metadata || {
           custom_fields: [{ display_name: "Service", variable_name: "service", value: "LifeOS Pro" }]
         }
@@ -161,6 +162,7 @@ app.post('/api/paystack/initialize', async (req, res) => {
     res.status(500).json({ error: "Could not initialize payment" });
   }
 });
+
 
 app.post('/api/paystack/webhook', async (req, res) => {
   const hash = crypto.createHmac('sha512', process.env.PAYSTACK_SECRET_KEY)
