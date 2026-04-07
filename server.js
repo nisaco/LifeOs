@@ -351,7 +351,7 @@ app.post('/api/chat', async (req, res) => {
 
     const model = genAI.getGenerativeModel({ 
       // ✅ Changed to 1.5-flash for more stable free-tier limits
-      model: "gemini-1.5-flash",
+      model: "gemini-3-flash",
       systemInstruction: `You are the official AI Assistant for LifeOS...`
     });
 
