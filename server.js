@@ -41,7 +41,9 @@ const userSchema = new mongoose.Schema({
   dailyChatCount: { type: Number, default: 0 },
   lastChatReset: { type: Date, default: Date.now },
   tasks: { type: Array, default: [] },
-  budget: { type: Array, default: [] }
+  budget: { type: Array, default: [] },
+  // ✅ NEW: Added history array for AJEnterprise data purchases
+  dataOrders: { type: Array, default: [] } 
 });
 
 const User = mongoose.model('User', userSchema);
@@ -173,6 +175,7 @@ app.post('/api/paystack/webhook', async (req, res) => {
       // 🌟 CHECK 1: Is this a Data Purchase via AJEnterprise?
       if (metadata && metadata.service === "DATA_TOPUP") {
           const { phone, network, bundleId } = metadata;
+          const userEmail = event.data.customer.email;
           console.log(`✅ Payment received for Data. Sending ${bundleId} to ${phone}...`);
           
           try {
@@ -190,6 +193,25 @@ app.post('/api/paystack/webhook', async (req, res) => {
               });
               
               console.log(`📡 Data successfully dispensed via AJEnterprise:`, ajResponse.data);
+
+              // ✅ NEW: Save order to User's internal history
+              await User.findOneAndUpdate(
+                { email: userEmail },
+                { 
+                  $push: { 
+                    dataOrders: {
+                      reference: event.data.reference,
+                      network,
+                      phone,
+                      bundleId,
+                      amount: event.data.amount / 100,
+                      date: new Date(),
+                      status: 'Successful'
+                    } 
+                  } 
+                }
+              );
+
           } catch (error) {
               console.error("❌ Failed to dispense via AJ API:", error.response ? error.response.data : error.message);
           }
@@ -337,7 +359,7 @@ app.post('/api/chat', async (req, res) => {
     const chatTitle = messages[0].content.substring(0, 30) + (messages[0].content.length > 30 ? '...' : '');
 
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-2.5-flash",
+      model: "gemini-2.0-flash",
       systemInstruction: `You are the official AI Assistant for LifeOS, a premium productivity and lifestyle management app. You are highly intelligent, helpful, friendly, and act as a personal concierge for the user. Always use emojis naturally in your responses unless of course asked not to.
 
 ABOUT LIFEOS:

@@ -34,7 +34,6 @@ const TAB_ICONS = {
 };
 
 function TabIcon({ name, focused }) {
-  // ✅ SAFETY FIX: If the screen isn't in our icon list, don't crash! Just return nothing.
   const tabInfo = TAB_ICONS[name];
   if (!tabInfo) return null; 
 
@@ -127,14 +126,12 @@ export default function App() {
         <Tab.Screen name="Focus"  component={FocusScreen} />
         <Tab.Screen name="Game"   component={GameScreen} />
         
-        {/* ✅ FIXED: Changed name to "DataScreen" to match HomeScreen */}
-        {/* ✅ FIXED: Added options to completely hide it from the bottom bar */}
         <Tab.Screen 
             name="DataScreen" 
             component={DataScreen} 
             options={{
-                tabBarButton: () => null, // Completely hides the icon from the bottom bar
-                tabBarStyle: { display: 'none' } // Hides the entire bar when viewing this screen
+                // ✅ Hides the icon so it doesn't mess up spacing, but KEEPS the bar visible!
+                tabBarButton: () => null 
             }}
         />
       </Tab.Navigator>

@@ -11,34 +11,41 @@ import { Storage } from '../utils/storage';
 // ==========================================
 const PRICING = {
     "MTN": [
-            { id: '1GB', name: '1GB', price: 4.70 }, { id: '2GB', name: '2GB', price: 9.60 }, { id: '3GB', name: '3GB', price: 14.50 }, 
-            { id: '4GB', name: '4GB', price: 19.60 }, { id: '5GB', name: '5GB', price: 24.00 }, { id: '6GB', name: '6GB', price: 28.00 }, 
-            { id: '8GB', name: '8GB', price: 36.00 }, { id: '10GB', name: '10GB', price: 43.00 }, { id: '15GB', name: '15GB', price: 63.50 },
-            { id: '20GB', name: '20GB', price: 85.00 }, { id: '25GB', name: '25GB', price: 105.00 }, { id: '30GB', name: '30GB', price: 124.00 },
-            { id: '40GB', name: '40GB', price: 164.00 }, { id: '50GB', name: '50GB', price: 205.00 }
-        ],
-        "AirtelTigo": [
-            { id: '1GB', name: '1GB', price: 4.40 }, { id: '2GB', name: '2GB', price: 8.80 }, { id: '3GB', name: '3GB', price: 13.20 },  
-            { id: '4GB', name: '4GB', price: 18.00 }, { id: '5GB', name: '5GB', price: 23.00 }, { id: '6GB', name: '6GB', price: 27.00 },  
-            { id: '7GB', name: '7GB', price: 31.00 }, { id: '8GB', name: '8GB', price: 36.00 }, { id: '9GB', name: '9GB', price: 39.50 },  
-            { id: '10GB', name: '10GB', price: 42.00 }, { id: '12GB', name: '12GB', price: 50.00 }, { id: '15GB', name: '15GB', price: 62.00 },
-            { id: '20GB', name: '20GB', price: 84.00 }
-        ],
-        "Telecel": [
-            { id: '5GB', name: '5GB', price: 25.00 }, { id: '10GB', name: '10GB', price: 43.00 }, { id: '15GB', name: '15GB', price: 63.00 }, 
-            { id: '20GB', name: '20GB', price: 83.20 }, { id: '25GB', name: '25GB', price: 102.00 }, { id: '30GB', name: '30GB', price: 120.00 },
-            { id: '40GB', name: '40GB', price: 160.00 }, { id: '50GB', name: '50GB', price: 195.00 }, { id: '100GB', name: '100GB', price: 400.00}
-        ],
-         "AT-Big Time": [
-            { id: '30GB', name: '30GB', price: 85.00 }, { id: '40GB', name: '40GB', price: 103.00 }, { id: '50GB', name: '50GB', price: 120.00 }, 
-            { id: '60GB', name: '60GB', price: 160.00 }, { id: '80GB', name: '80GB', price: 200.00 },
-            { id: '100GB', name: '100GB', price: 240.00 }, { id: '200GB', name: '200GB', price: 400.00}
-        ]
+        { id: '1GB', name: '1GB', price: 6.00 }, { id: '2GB', name: '2GB', price: 11.00 },
+        { id: '3GB', name: '3GB', price: 17.00 }, { id: '4GB', name: '4GB', price: 22.00 }, 
+        { id: '5GB', name: '5GB', price: 30.00 }, { id: '6GB', name: '6GB', price: 36.00 }, 
+        { id: '7GB', name: '7GB', price: 39.00 }, { id: '8GB', name: '8GB', price: 43.00 },
+        { id: '10GB', name: '10GB', price: 49.00 }, { id: '15GB', name: '15GB', price: 75.00 }, 
+        { id: '20GB', name: '20GB', price: 100.00 }, { id: '25GB', name: '25GB', price: 128.00 }, 
+        { id: '30GB', name: '30GB', price: 150.00 }, { id: '40GB', name: '40GB', price: 195.00 },
+        { id: '50GB', name: '50GB', price: 248.00 }
+    ],
+    "AirtelTigo": [
+        { id: '1GB', name: '1GB', price: 6.00 }, { id: '2GB', name: '2GB', price: 10.00 }, 
+        { id: '3GB', name: '3GB', price: 14.00 }, { id: '4GB', name: '4GB', price: 22.00 }, 
+        { id: '5GB', name: '5GB', price: 26.00 }, { id: '6GB', name: '6GB', price: 30.00 },  
+        { id: '7GB', name: '7GB', price: 34.00 }, { id: '8GB', name: '8GB', price: 38.00 }, 
+        { id: '9GB', name: '9GB', price: 40.00 }, { id: '10GB', name: '10GB', price: 49.00 }, 
+        { id: '12GB', name: '12GB', price: 53.00 }, { id: '15GB', name: '15GB', price: 61.00 },
+        { id: '20GB', name: '20GB', price: 85.00 }
+    ],
+    "Telecel": [
+        { id: '5GB', name: '5GB', price: 29.00 }, { id: '10GB', name: '10GB', price: 49.20 }, 
+        { id: '15GB', name: '15GB', price: 80.00 }, { id: '20GB', name: '20GB', price: 100.00 }, 
+        { id: '25GB', name: '25GB', price: 120.00 }, { id: '30GB', name: '30GB', price: 123.00 },
+        { id: '40GB', name: '40GB', price: 175.50 }, { id: '50GB', name: '50GB', price: 195.00 }, 
+        { id: '100GB', name: '100GB', price: 400.00}
+    ],
+    "AT-Big Time": [
+        { id: '30GB', name: '30GB', price: 85.00 }, { id: '40GB', name: '40GB', price: 103.00 }, 
+        { id: '50GB', name: '50GB', price: 120.00 }, { id: '60GB', name: '60GB', price: 160.00 }, 
+        { id: '80GB', name: '80GB', price: 200.00 }, { id: '100GB', name: '100GB', price: 240.00 }, 
+        { id: '200GB', name: '200GB', price: 400.00}
+    ]
 };
 
 const NETWORKS = Object.keys(PRICING);
 
-// Network Prefix Detection Logic
 function detectNetwork(phone) {
     const p = phone.toString();
     if (['024', '054', '055', '059', '025', '053'].some(pre => p.startsWith(pre))) return 'MTN';
@@ -48,6 +55,12 @@ function detectNetwork(phone) {
 }
 
 export default function DataScreen({ navigation }) {
+  // Navigation & Data States
+  const [activeTab, setActiveTab] = useState('buy'); // 'buy' or 'history'
+  const [historyData, setHistoryData] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  // Purchasing States
   const [phone, setPhone] = useState('');
   const [network, setNetwork] = useState('MTN');
   const [selectedBundleId, setSelectedBundleId] = useState('');
@@ -56,13 +69,36 @@ export default function DataScreen({ navigation }) {
   const currentPlans = PRICING[network] || [];
   const selectedPlan = currentPlans.find(p => p.id === selectedBundleId);
 
-  // Fee Calculation Logic (Matches AJEnterprise Web)
+  // Fee Calculation Logic 
   const feeRate = 0.02; 
   const basePrice = selectedPlan?.price || 0;
   const feeAmount = basePrice > 0 ? (basePrice * feeRate) : 0;
   const totalCharge = basePrice + feeAmount;
 
-  // Auto-Detect Network as user types
+  // Load History whenever the tab changes
+  useEffect(() => {
+      if (activeTab === 'history') fetchHistory();
+  }, [activeTab]);
+
+  const fetchHistory = async () => {
+      setHistoryLoading(true);
+      const userId = await Storage.get('lifeos_user_id');
+      if (userId) {
+          try {
+              const res = await fetch(`https://lifeos-api-js9i.onrender.com/api/user/${userId}`);
+              const data = await res.json();
+              if (data.dataOrders) {
+                  // Sort newest first
+                  const sorted = data.dataOrders.sort((a,b) => new Date(b.date) - new Date(a.date));
+                  setHistoryData(sorted);
+              }
+          } catch (e) {
+              console.log("Failed to fetch history", e);
+          }
+      }
+      setHistoryLoading(false);
+  };
+
   const handlePhoneChange = (val) => {
       const cleanVal = val.replace(/[^0-9]/g, ''); 
       setPhone(cleanVal);
@@ -71,7 +107,7 @@ export default function DataScreen({ navigation }) {
           const detected = detectNetwork(cleanVal);
           if (detected && detected !== network) {
               setNetwork(detected);
-              setSelectedBundleId(''); // Reset bundle selection when network changes
+              setSelectedBundleId(''); 
           }
       }
   };
@@ -85,7 +121,6 @@ export default function DataScreen({ navigation }) {
 
     setLoading(true);
     try {
-      // Initialize payment through LifeOS Backend
       const response = await fetch('https://lifeos-api-js9i.onrender.com/api/paystack/initialize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -107,11 +142,12 @@ export default function DataScreen({ navigation }) {
         await WebBrowser.openBrowserAsync(data.authorization_url);
         Alert.alert(
             "Transaction Initiated", 
-            "If your payment was successful, your data will arrive in seconds! Check your AJEnterprise receipt."
+            "If your payment was successful, your data will arrive in seconds! Check your History tab."
         );
-        // Clear form on success
         setPhone('');
         setSelectedBundleId('');
+        // Automatically switch to history tab so they can see the new order
+        setActiveTab('history');
       } else {
         throw new Error("Failed to generate payment link.");
       }
@@ -122,7 +158,6 @@ export default function DataScreen({ navigation }) {
     }
   };
 
-  // Helper to determine network brand colors for the UI
   const getNetworkColor = (netName) => {
       if (netName === 'MTN') return '#FFCC00';
       if (netName === 'Telecel') return '#E31837';
@@ -145,90 +180,130 @@ export default function DataScreen({ navigation }) {
               <Text style={styles.subtitle}>Powered by AJEnterprise</Text>
           </View>
 
-          <View style={styles.card}>
-            
-            {/* 1. Network Selection */}
-            <Text style={styles.label}>Select Network</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.networkRow}>
-              {NETWORKS.map(net => {
-                const isActive = network === net;
-                const netColor = getNetworkColor(net);
-                return (
-                  <TouchableOpacity 
-                    key={net} 
-                    onPress={() => { setNetwork(net); setSelectedBundleId(''); }} 
-                    style={[styles.netBtn, isActive && { borderColor: netColor, backgroundColor: netColor + '15' }]}
-                  >
-                    <Text style={[styles.netText, isActive && { color: netColor }]}>
-                        {net === 'AT-Big Time' ? 'AT-Big Time' : net}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-
-            {/* 2. Phone Input */}
-            <Text style={styles.label}>Phone Number</Text>
-            <View style={[styles.inputBox, phone.length === 10 && { borderColor: colors.primary }]}>
-              <Feather name="smartphone" size={20} color={colors.textMuted} style={{ marginRight: 10 }} />
-              <TextInput 
-                style={styles.input} 
-                value={phone} 
-                onChangeText={handlePhoneChange} 
-                keyboardType="numeric" 
-                maxLength={10} 
-                placeholder="e.g. 054 XXX XXXX" 
-                placeholderTextColor={colors.textMuted} 
-              />
-              {phone.length === 10 && <Feather name="check-circle" size={20} color={colors.primary} />}
-            </View>
-
-            {/* 3. Bundle Selection */}
-            <Text style={styles.label}>Select Bundle</Text>
-            <View style={styles.bundleGrid}>
-              {currentPlans.map(bundle => {
-                const isActive = selectedBundleId === bundle.id;
-                return (
-                  <TouchableOpacity 
-                    key={bundle.id} 
-                    onPress={() => setSelectedBundleId(bundle.id)} 
-                    style={[styles.bundleBtn, isActive && styles.bundleBtnActive]}
-                  >
-                    <Text style={[styles.bundleSize, isActive && { color: colors.primary }]}>{bundle.name}</Text>
-                    <Text style={styles.bundlePrice}>GHS {bundle.price.toFixed(2)}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            {/* 4. Receipt / Fee Breakdown */}
-            {selectedPlan && (
-                <View style={styles.receiptBox}>
-                    <View style={styles.receiptRow}>
-                        <Text style={styles.receiptText}>Bundle Price:</Text>
-                        <Text style={styles.receiptValue}>GHS {basePrice.toFixed(2)}</Text>
-                    </View>
-                    <View style={styles.receiptRow}>
-                        <Text style={styles.receiptText}>Processing Fee (2%):</Text>
-                        <Text style={styles.receiptValue}>+ GHS {feeAmount.toFixed(2)}</Text>
-                    </View>
-                    <View style={[styles.receiptRow, { borderTopWidth: 1, borderTopColor: colors.border, marginTop: 10, paddingTop: 10 }]}>
-                        <Text style={[styles.receiptText, { fontWeight: '800', color: colors.textPrimary }]}>Total Charge:</Text>
-                        <Text style={[styles.receiptValue, { fontSize: 18, color: colors.primary }]}>GHS {totalCharge.toFixed(2)}</Text>
-                    </View>
-                </View>
-            )}
-
+          {/* TAB TOGGLE: Buy vs History */}
+          <View style={styles.tabContainer}>
+              <TouchableOpacity onPress={() => setActiveTab('buy')} style={[styles.tabBtn, activeTab === 'buy' && styles.tabBtnActive]}>
+                  <Text style={[styles.tabText, activeTab === 'buy' && styles.tabTextActive]}>Buy Data</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setActiveTab('history')} style={[styles.tabBtn, activeTab === 'history' && styles.tabBtnActive]}>
+                  <Text style={[styles.tabText, activeTab === 'history' && styles.tabTextActive]}>History</Text>
+              </TouchableOpacity>
           </View>
 
-          {/* Pay Button */}
-          <TouchableOpacity 
-            style={[styles.payBtn, (!selectedPlan || phone.length < 10) && { opacity: 0.5 }]} 
-            onPress={handlePurchase} 
-            disabled={loading || !selectedPlan || phone.length < 10}
-          >
-              {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.payBtnText}>Pay GHS {totalCharge.toFixed(2)}</Text>}
-          </TouchableOpacity>
+          {/* VIEW 1: BUY DATA */}
+          {activeTab === 'buy' && (
+            <View style={styles.card}>
+              
+              <Text style={styles.label}>Select Network</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.networkRow}>
+                {NETWORKS.map(net => {
+                  const isActive = network === net;
+                  const netColor = getNetworkColor(net);
+                  return (
+                    <TouchableOpacity 
+                      key={net} 
+                      onPress={() => { setNetwork(net); setSelectedBundleId(''); }} 
+                      style={[styles.netBtn, isActive && { borderColor: netColor, backgroundColor: netColor + '15' }]}
+                    >
+                      <Text style={[styles.netText, isActive && { color: netColor }]}>
+                          {net === 'AT-Big Time' ? 'AT-Big Time' : net}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              <Text style={styles.label}>Phone Number</Text>
+              <View style={[styles.inputBox, phone.length === 10 && { borderColor: colors.primary }]}>
+                <Feather name="smartphone" size={20} color={colors.textMuted} style={{ marginRight: 10 }} />
+                <TextInput 
+                  style={styles.input} 
+                  value={phone} 
+                  onChangeText={handlePhoneChange} 
+                  keyboardType="numeric" 
+                  maxLength={10} 
+                  placeholder="e.g. 054 XXX XXXX" 
+                  placeholderTextColor={colors.textMuted} 
+                />
+                {phone.length === 10 && <Feather name="check-circle" size={20} color={colors.primary} />}
+              </View>
+
+              <Text style={styles.label}>Select Bundle</Text>
+              <View style={styles.bundleGrid}>
+                {currentPlans.map(bundle => {
+                  const isActive = selectedBundleId === bundle.id;
+                  return (
+                    <TouchableOpacity 
+                      key={bundle.id} 
+                      onPress={() => setSelectedBundleId(bundle.id)} 
+                      style={[styles.bundleBtn, isActive && styles.bundleBtnActive]}
+                    >
+                      <Text style={[styles.bundleSize, isActive && { color: colors.primary }]}>{bundle.name}</Text>
+                      <Text style={styles.bundlePrice}>GHS {bundle.price.toFixed(2)}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {selectedPlan && (
+                  <View style={styles.receiptBox}>
+                      <View style={styles.receiptRow}>
+                          <Text style={styles.receiptText}>Bundle Price:</Text>
+                          <Text style={styles.receiptValue}>GHS {basePrice.toFixed(2)}</Text>
+                      </View>
+                      <View style={styles.receiptRow}>
+                          <Text style={styles.receiptText}>Processing Fee (2%):</Text>
+                          <Text style={styles.receiptValue}>+ GHS {feeAmount.toFixed(2)}</Text>
+                      </View>
+                      <View style={[styles.receiptRow, { borderTopWidth: 1, borderTopColor: colors.border, marginTop: 10, paddingTop: 10 }]}>
+                          <Text style={[styles.receiptText, { fontWeight: '800', color: colors.textPrimary }]}>Total Charge:</Text>
+                          <Text style={[styles.receiptValue, { fontSize: 18, color: colors.primary }]}>GHS {totalCharge.toFixed(2)}</Text>
+                      </View>
+                  </View>
+              )}
+            </View>
+          )}
+
+          {activeTab === 'buy' && (
+              <TouchableOpacity 
+                style={[styles.payBtn, (!selectedPlan || phone.length < 10) && { opacity: 0.5 }]} 
+                onPress={handlePurchase} 
+                disabled={loading || !selectedPlan || phone.length < 10}
+              >
+                  {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.payBtnText}>Pay GHS {totalCharge.toFixed(2)}</Text>}
+              </TouchableOpacity>
+          )}
+
+          {/* VIEW 2: HISTORY */}
+          {activeTab === 'history' && (
+             <View style={styles.historyContainer}>
+                 {historyLoading ? (
+                     <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
+                 ) : historyData.length === 0 ? (
+                     <View style={styles.emptyState}>
+                         <Feather name="clock" size={48} color={colors.textMuted} style={{ opacity: 0.5, marginBottom: 15 }} />
+                         <Text style={styles.emptyText}>No data purchases yet.</Text>
+                     </View>
+                 ) : (
+                     historyData.map((order, idx) => (
+                         <View key={idx} style={styles.historyCard}>
+                             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                                 <Text style={{ color: '#FFF', fontWeight: '900', fontSize: 16 }}>{order.network} {order.bundleId}</Text>
+                                 <Text style={{ color: colors.primary, fontWeight: '900', fontSize: 16 }}>GHS {order.amount.toFixed(2)}</Text>
+                             </View>
+                             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
+                                 <Text style={{ color: colors.textMuted, fontSize: 13, fontWeight: '600' }}>To: {order.phone}</Text>
+                                 <Text style={{ color: colors.textMuted, fontSize: 13, fontWeight: '600' }}>{new Date(order.date).toLocaleString()}</Text>
+                             </View>
+                             <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)' }}>
+                                 <Text style={{ color: colors.textMuted, fontSize: 10, fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', opacity: 0.7 }}>Ref: {order.reference}</Text>
+                                 <Text style={{ color: '#4ADE80', fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.5 }}>{order.status}</Text>
+                             </View>
+                         </View>
+                     ))
+                 )}
+             </View>
+          )}
 
         </ScrollView>
       </KeyboardAvoidingView>
@@ -238,11 +313,18 @@ export default function DataScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { alignItems: 'center', marginBottom: spacing.lg, position: 'relative' },
+  header: { alignItems: 'center', marginBottom: spacing.md, position: 'relative' },
   backBtn: { position: 'absolute', left: 0, top: 10, padding: 10, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12 },
   iconBox: { width: 60, height: 60, borderRadius: 20, backgroundColor: '#00987920', alignItems: 'center', justifyContent: 'center', marginBottom: 15, borderWidth: 1, borderColor: '#00987940' },
   title: { fontSize: 26, fontWeight: '900', color: colors.textPrimary },
   subtitle: { fontSize: 13, color: colors.textMuted, fontWeight: '600', marginTop: 4 },
+
+  tabContainer: { flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: radius.lg, padding: 4, marginBottom: spacing.lg },
+  tabBtn: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: radius.md },
+  tabBtnActive: { backgroundColor: colors.primary },
+  tabText: { color: colors.textMuted, fontWeight: '800', fontSize: 14 },
+  tabTextActive: { color: '#FFF' },
+
   card: { backgroundColor: colors.cardBg, borderRadius: radius.xl, padding: spacing.lg, marginBottom: spacing.xl, borderWidth: 1, borderColor: colors.border },
   label: { fontSize: 12, fontWeight: '800', color: colors.textMuted, textTransform: 'uppercase', marginBottom: 12, marginTop: 15, letterSpacing: 0.5 },
   
@@ -265,5 +347,10 @@ const styles = StyleSheet.create({
   receiptValue: { fontSize: 14, color: colors.textPrimary, fontWeight: '800', fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' },
 
   payBtn: { backgroundColor: colors.primary, height: 60, borderRadius: radius.xl, alignItems: 'center', justifyContent: 'center', shadowColor: colors.primary, shadowOpacity: 0.3, shadowRadius: 10, elevation: 5 },
-  payBtnText: { color: '#FFF', fontSize: 18, fontWeight: '900' }
+  payBtnText: { color: '#FFF', fontSize: 18, fontWeight: '900' },
+
+  historyContainer: { marginTop: 10 },
+  emptyState: { alignItems: 'center', marginTop: 40 },
+  emptyText: { color: colors.textMuted, fontSize: 14, fontWeight: '600' },
+  historyCard: { backgroundColor: colors.cardBg, borderRadius: radius.lg, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: colors.border }
 });
