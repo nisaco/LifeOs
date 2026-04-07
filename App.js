@@ -122,6 +122,7 @@ export default function App() {
         <Tab.Screen name="Health" component={HealthScreen} />
         <Tab.Screen name="Focus"  component={FocusScreen} />
         <Tab.Screen name="Game"   component={GameScreen} />
+        <Tab.Screen name="Data"   component={DataScreen} />
       </Tab.Navigator>
     </NavigationContainer>
   );
