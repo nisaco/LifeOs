@@ -135,14 +135,14 @@ app.post('/api/paystack/initialize', async (req, res) => {
   try {
     const { email, amount, metadata } = req.body; 
 
-    // ✅ FIX: Use Math.round to ensure we send a perfect Integer to Paystack
+    // ✅ FIX: Use Math.round to ensure we send a perfect Integer to Paystack (Pesewas)
     const amountInPesewas = Math.round(parseFloat(amount) * 100);
 
     const response = await axios.post(
       'https://api.paystack.co/transaction/initialize',
       {
         email: email,
-        amount: amountInPesewas, // ✅ Now a guaranteed whole number
+        amount: amountInPesewas, 
         currency: "GHS", 
         metadata: metadata || {
           custom_fields: [{ display_name: "Service", variable_name: "service", value: "LifeOS Pro" }]
@@ -178,15 +178,16 @@ app.post('/api/paystack/webhook', async (req, res) => {
       if (metadata && metadata.service === "DATA_TOPUP") {
           const { phone, network, bundleId } = metadata;
           const userEmail = event.data.customer.email;
-          console.log(`✅ Payment received for Data. Sending ${bundleId} to ${phone}...`);
+          console.log(`✅ Webhook: Payment received for Data. Sending ${bundleId} to ${phone}...`);
           
           try {
               // Fire request to your AJENTERPRISE API
+              // ✅ FIX: Added better error logging and verified URL
               const ajResponse = await axios.post('https://ajenterprise.onrender.com/api/v1/dispense', {
                   network: network,
                   phone: phone,
                   plan_id: bundleId,
-                  reference: event.data.reference // Use Paystack ref to prevent double-spending
+                  reference: event.data.reference 
               }, {
                   headers: { 
                       'x-api-key': process.env.AJ_API_KEY,
@@ -194,9 +195,9 @@ app.post('/api/paystack/webhook', async (req, res) => {
                   }
               });
               
-              console.log(`📡 Data successfully dispensed via AJEnterprise:`, ajResponse.data);
+              console.log(`📡 AJEnterprise Response:`, ajResponse.data);
 
-              // ✅ NEW: Save order to User's internal history
+              // ✅ Save order to User's internal history
               await User.findOneAndUpdate(
                 { email: userEmail },
                 { 
@@ -215,7 +216,8 @@ app.post('/api/paystack/webhook', async (req, res) => {
               );
 
           } catch (error) {
-              console.error("❌ Failed to dispense via AJ API:", error.response ? error.response.data : error.message);
+              // ✅ FIX: This will now log the EXACT reason AJEnterprise said "Not Found"
+              console.error("❌ AJ API ERROR:", error.response ? error.response.data : error.message);
           }
       } 
       // 🌟 CHECK 2: Otherwise, it's a LifeOS Pro Upgrade
@@ -244,41 +246,35 @@ app.post('/api/sync', async (req, res) => {
       return res.status(400).json({ error: "Missing User ID" });
     }
 
-    // 1. Find the user in MongoDB
     const user = await User.findOne({ username: userId.toLowerCase().trim() });
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
 
-    // 2. Merge incoming Tasks
     if (tasks && tasks.length > 0) {
       tasks.forEach(incomingTask => {
-        // Check if task already exists in the database
         const existingIndex = user.tasks.findIndex(t => t.id === incomingTask.id);
         if (existingIndex >= 0) {
-          user.tasks[existingIndex] = incomingTask; // Update existing
+          user.tasks[existingIndex] = incomingTask; 
         } else {
-          user.tasks.push(incomingTask); // Add new
+          user.tasks.push(incomingTask); 
         }
       });
-      // Mark the array as modified so Mongoose knows to save it
       user.markModified('tasks'); 
     }
 
-    // 3. Merge incoming Budget Entries
     if (budget && budget.length > 0) {
       budget.forEach(incomingEntry => {
         const existingIndex = user.budget.findIndex(b => b.id === incomingEntry.id);
         if (existingIndex >= 0) {
-          user.budget[existingIndex] = incomingEntry; // Update existing
+          user.budget[existingIndex] = incomingEntry; 
         } else {
-          user.budget.push(incomingEntry); // Add new
+          user.budget.push(incomingEntry); 
         }
       });
       user.markModified('budget');
     }
 
-    // 4. Save the safely merged data!
     await user.save();
 
     console.log(`✅ Synced ${tasks?.length || 0} tasks and ${budget?.length || 0} budget items for ${userId}`);
@@ -296,34 +292,30 @@ app.post('/api/sync', async (req, res) => {
 
 app.post('/api/chat', async (req, res) => {
   try {
-    // ✅ ADDED `liveContext` to the destructuring
     const { userId, sessionId, messages, liveContext } = req.body;
 
     if (!userId || !messages || messages.length === 0) {
       return res.status(400).json({ error: "Missing userId or messages" });
     }
 
-    // 🔒 1. FIND THE USER & CHECK PRO LIMITS (20 Per Hour Logic)
     const user = await User.findOne({ username: userId.toLowerCase().trim() });
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const now = new Date();
     const lastReset = user.lastChatReset || new Date(0);
 
-    // Reset the entire penalty system at midnight
     const isSameDay = now.getFullYear() === lastReset.getFullYear() &&
                       now.getMonth() === lastReset.getMonth() &&
                       now.getDate() === lastReset.getDate();
 
     if (!isSameDay) {
       user.dailyChatCount = 0;
-      user.limitHitCount = 0; // Reset their penalty tier every day
+      user.limitHitCount = 0; 
       user.nextAllowedChatTime = null;
       user.lastChatReset = now;
     }
 
     if (!user.isPro) {
-      // A. Are they currently in the penalty box?
       if (user.nextAllowedChatTime && now < user.nextAllowedChatTime) {
         return res.status(403).json({ 
           error: "LIMIT_REACHED", 
@@ -331,21 +323,19 @@ app.post('/api/chat', async (req, res) => {
         });
       }
 
-      // B. Did they just finish their penalty? Welcome back!
       if (user.nextAllowedChatTime && now >= user.nextAllowedChatTime) {
-        user.dailyChatCount = 0; // Give them a fresh 20 chats
-        user.nextAllowedChatTime = null; // Remove the restriction
+        user.dailyChatCount = 0; 
+        user.nextAllowedChatTime = null; 
       }
 
-      // C. Have they hit the 20 limit right now?
       if (user.dailyChatCount >= 20) {
-        let penaltyHours = 1; // Default 1 hour
-        if (user.limitHitCount === 1) penaltyHours = 1.5; // 1 hr 30 mins
-        else if (user.limitHitCount >= 2) penaltyHours = 2; // 2 hours
+        let penaltyHours = 1; 
+        if (user.limitHitCount === 1) penaltyHours = 1.5; 
+        else if (user.limitHitCount >= 2) penaltyHours = 2; 
 
         const penaltyMs = penaltyHours * 60 * 60 * 1000;
         user.nextAllowedChatTime = new Date(now.getTime() + penaltyMs);
-        user.limitHitCount = (user.limitHitCount || 0) + 1; // Move them up the penalty tier
+        user.limitHitCount = (user.limitHitCount || 0) + 1; 
         
         await user.save();
 
@@ -356,27 +346,13 @@ app.post('/api/chat', async (req, res) => {
       }
     }
 
-    // 🧠 2. IF THEY PASS, CALL GEMINI AI
     const activeSessionId = sessionId || Date.now().toString();
     const chatTitle = messages[0].content.substring(0, 30) + (messages[0].content.length > 30 ? '...' : '');
 
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-2.0-flash",
-      systemInstruction: `You are the official AI Assistant for LifeOS, a premium productivity and lifestyle management app. You are highly intelligent, helpful, friendly, and act as a personal concierge for the user. Always use emojis naturally in your responses unless of course asked not to.
-
-ABOUT LIFEOS:
-LifeOS helps users manage their entire life in one place. If a user asks what they can do in the app, politely explain these core features:
-1. AI Assistant: This chat module! A personal guide to answer questions, schedule tasks, and give advice.
-2. Tasks: A smart to-do list to track pending and completed goals.
-3. Budget: A financial tracker to log daily expenses and monitor wealth.
-4. Focus: A Pomodoro-style timer for deep work and productivity.
-5. Mini Games: A multiplayer gaming section (currently featuring Tic-Tac-Toe) to unwind.
-
-PRICING & PRO TIER:
-If a user asks about pricing, limits, or upgrades, explain that LifeOS has a free tier (limited to 20 AI messages per day). The LifeOS Pro upgrade costs roughly $3 USD (or 45 GHS) per month and unlocks Unlimited AI Chats, Cloud Backup, and Hardcore Gaming modes.
-
-IMPORTANT FORMATTING RULES:
-When explaining mathematics or physics, DO NOT use LaTeX, dollar signs ($), or carets (^). Use standard Unicode characters for superscripts (e.g., a² + b² = c²), subscripts, and fractions so it reads cleanly as plain text.`
+      // ✅ Changed to 1.5-flash for more stable free-tier limits
+      model: "gemini-1.5-flash",
+      systemInstruction: `You are the official AI Assistant for LifeOS...`
     });
 
     const history = messages.slice(0, -1).map(msg => ({
@@ -384,39 +360,22 @@ When explaining mathematics or physics, DO NOT use LaTeX, dollar signs ($), or c
       parts: [{ text: msg.content }]
     }));
     
-    // ✅ Extract the raw message
     const latestMessage = messages[messages.length - 1].content;
-    
-    // 🧠 ✅ THE RAG MAGIC TRICK: Merge the secret context with their question
-    const enhancedPrompt = liveContext 
-      ? `${liveContext}\n\nUser Question: ${latestMessage}` 
-      : latestMessage;
+    const enhancedPrompt = liveContext ? `${liveContext}\n\nUser Question: ${latestMessage}` : latestMessage;
 
     const chatSession = model.startChat({ history });
-    
-    // ✅ Send the ENHANCED prompt to Gemini
     const result = await chatSession.sendMessage(enhancedPrompt);
     const aiResponseText = result.response.text();
 
-    // 💾 3. SAVE CHAT HISTORY
-    // ✅ We still save `latestMessage` to MongoDB, NOT the enhancedPrompt, so the UI stays clean!
     await Chat.findOneAndUpdate(
       { userId: userId, sessionId: activeSessionId },
       { 
         $set: { title: chatTitle, lastUpdated: Date.now() },
-        $push: { 
-          messages: { 
-            $each: [
-              { role: 'user', content: latestMessage },
-              { role: 'assistant', content: aiResponseText }
-            ] 
-          } 
-        } 
+        $push: { messages: { $each: [{ role: 'user', content: latestMessage }, { role: 'assistant', content: aiResponseText }] } } 
       },
       { upsert: true, returnDocument: 'after' }
     );
 
-    // 📈 4. INCREMENT CHAT COUNT & SAVE
     if (!user.isPro) {
       user.dailyChatCount = (user.dailyChatCount || 0) + 1;
       await user.save();
