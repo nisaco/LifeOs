@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Linking } from 'react-native';
+import { Feather, FontAwesome } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, spacing, radius } from '../utils/theme'; 
@@ -48,7 +48,7 @@ function detectNetwork(phone) {
 
 export default function DataScreen({ navigation }) {
   // Navigation & Data States
-  const [activeTab, setActiveTab] = useState('buy'); // 'buy' or 'history'
+  const [activeTab, setActiveTab] = useState('buy'); // 'buy', 'history', or 'support'
   const [historyData, setHistoryData] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
@@ -80,7 +80,6 @@ export default function DataScreen({ navigation }) {
               const res = await fetch(`https://lifeos-api-js9i.onrender.com/api/user/${userId}`);
               const data = await res.json();
               if (data.dataOrders) {
-                  // Sort newest first
                   const sorted = data.dataOrders.sort((a,b) => new Date(b.date) - new Date(a.date));
                   setHistoryData(sorted);
               }
@@ -94,7 +93,6 @@ export default function DataScreen({ navigation }) {
   const handlePhoneChange = (val) => {
       const cleanVal = val.replace(/[^0-9]/g, ''); 
       setPhone(cleanVal);
-      
       if (cleanVal.length === 3) {
           const detected = detectNetwork(cleanVal);
           if (detected && detected !== network) {
@@ -134,20 +132,33 @@ export default function DataScreen({ navigation }) {
         await WebBrowser.openBrowserAsync(data.authorization_url);
         Alert.alert(
             "Transaction Initiated", 
-            "If your payment was successful, your data will arrive in seconds! Check your History tab."
+            "If your payment was successful, your data will arrive soon! Check History for updates."
         );
         setPhone('');
         setSelectedBundleId('');
-        // Automatically switch to history tab so they can see the new order
         setActiveTab('history');
       } else {
         throw new Error("Failed to generate payment link.");
       }
     } catch (err) {
-      Alert.alert("Connection Error", "Could not reach the payment server. Please try again.");
+      Alert.alert("Connection Error", "Could not reach the payment server.");
     } finally {
       setLoading(false);
     }
+  };
+
+  const openWhatsApp = (msg = "") => {
+    const url = `whatsapp://send?phone=233549800115&text=${encodeURIComponent(msg)}`;
+    Linking.openURL(url).catch(() => {
+        Alert.alert("WhatsApp Not Found", "Please install WhatsApp to contact support directly.");
+    });
+  };
+
+  const joinCommunity = () => {
+    const url = "https://chat.whatsapp.com/GueSND93GqF9vI1L0p0q0"; // Replace with your actual group ID
+    Linking.openURL(url).catch(() => {
+        Alert.alert("Error", "Could not open the community link.");
+    });
   };
 
   const getNetworkColor = (netName) => {
@@ -168,24 +179,26 @@ export default function DataScreen({ navigation }) {
                   <Feather name="arrow-left" size={24} color="#FFF" />
               </TouchableOpacity>
               <View style={styles.iconBox}><Feather name="wifi" size={28} color="#009879" /></View>
-              <Text style={styles.title}>Instant Top-Up</Text>
+              <Text style={styles.title}>Data Hub</Text>
               <Text style={styles.subtitle}>Powered by AJEnterprise</Text>
           </View>
 
-          {/* TAB TOGGLE: Buy vs History */}
+          {/* TAB TOGGLE: Buy vs History vs Support */}
           <View style={styles.tabContainer}>
               <TouchableOpacity onPress={() => setActiveTab('buy')} style={[styles.tabBtn, activeTab === 'buy' && styles.tabBtnActive]}>
-                  <Text style={[styles.tabText, activeTab === 'buy' && styles.tabTextActive]}>Buy Data</Text>
+                  <Text style={[styles.tabText, activeTab === 'buy' && styles.tabTextActive]}>Buy</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => setActiveTab('history')} style={[styles.tabBtn, activeTab === 'history' && styles.tabBtnActive]}>
                   <Text style={[styles.tabText, activeTab === 'history' && styles.tabTextActive]}>History</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setActiveTab('support')} style={[styles.tabBtn, activeTab === 'support' && styles.tabBtnActive]}>
+                  <Text style={[styles.tabText, activeTab === 'support' && styles.tabTextActive]}>Support</Text>
               </TouchableOpacity>
           </View>
 
           {/* VIEW 1: BUY DATA */}
           {activeTab === 'buy' && (
             <View style={styles.card}>
-              
               <Text style={styles.label}>Select Network</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.networkRow}>
                 {NETWORKS.map(net => {
@@ -197,9 +210,7 @@ export default function DataScreen({ navigation }) {
                       onPress={() => { setNetwork(net); setSelectedBundleId(''); }} 
                       style={[styles.netBtn, isActive && { borderColor: netColor, backgroundColor: netColor + '15' }]}
                     >
-                      <Text style={[styles.netText, isActive && { color: netColor }]}>
-                          {net === 'AT-Big Time' ? 'AT-Big Time' : net}
-                      </Text>
+                      <Text style={[styles.netText, isActive && { color: netColor }]}>{net}</Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -222,79 +233,102 @@ export default function DataScreen({ navigation }) {
 
               <Text style={styles.label}>Select Bundle</Text>
               <View style={styles.bundleGrid}>
-                {currentPlans.map(bundle => {
-                  const isActive = selectedBundleId === bundle.id;
-                  return (
-                    <TouchableOpacity 
-                      key={bundle.id} 
-                      onPress={() => setSelectedBundleId(bundle.id)} 
-                      style={[styles.bundleBtn, isActive && styles.bundleBtnActive]}
-                    >
-                      <Text style={[styles.bundleSize, isActive && { color: colors.primary }]}>{bundle.name}</Text>
-                      <Text style={styles.bundlePrice}>GHS {bundle.price.toFixed(2)}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
+                {currentPlans.map(bundle => (
+                  <TouchableOpacity 
+                    key={bundle.id} 
+                    onPress={() => setSelectedBundleId(bundle.id)} 
+                    style={[styles.bundleBtn, selectedBundleId === bundle.id && styles.bundleBtnActive]}
+                  >
+                    <Text style={[styles.bundleSize, selectedBundleId === bundle.id && { color: colors.primary }]}>{bundle.name}</Text>
+                    <Text style={styles.bundlePrice}>GHS {bundle.price.toFixed(2)}</Text>
+                  </TouchableOpacity>
+                ))}
               </View>
 
               {selectedPlan && (
                   <View style={styles.receiptBox}>
                       <View style={styles.receiptRow}>
-                          <Text style={styles.receiptText}>Bundle Price:</Text>
-                          <Text style={styles.receiptValue}>GHS {basePrice.toFixed(2)}</Text>
-                      </View>
-                      <View style={styles.receiptRow}>
-                          <Text style={styles.receiptText}>Processing Fee (2%):</Text>
-                          <Text style={styles.receiptValue}>+ GHS {feeAmount.toFixed(2)}</Text>
-                      </View>
-                      <View style={[styles.receiptRow, { borderTopWidth: 1, borderTopColor: colors.border, marginTop: 10, paddingTop: 10 }]}>
-                          <Text style={[styles.receiptText, { fontWeight: '800', color: colors.textPrimary }]}>Total Charge:</Text>
+                          <Text style={styles.receiptText}>Total Charge:</Text>
                           <Text style={[styles.receiptValue, { fontSize: 18, color: colors.primary }]}>GHS {totalCharge.toFixed(2)}</Text>
                       </View>
                   </View>
               )}
-            </View>
-          )}
 
-          {activeTab === 'buy' && (
               <TouchableOpacity 
-                style={[styles.payBtn, (!selectedPlan || phone.length < 10) && { opacity: 0.5 }]} 
+                style={[styles.payBtn, (!selectedPlan || phone.length < 10) && { opacity: 0.5 }, { marginTop: 20 }]} 
                 onPress={handlePurchase} 
                 disabled={loading || !selectedPlan || phone.length < 10}
               >
                   {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.payBtnText}>Pay GHS {totalCharge.toFixed(2)}</Text>}
               </TouchableOpacity>
+            </View>
           )}
 
           {/* VIEW 2: HISTORY */}
           {activeTab === 'history' && (
-             <View style={styles.historyContainer}>
-                 {historyLoading ? (
-                     <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
-                 ) : historyData.length === 0 ? (
-                     <View style={styles.emptyState}>
-                         <Feather name="clock" size={48} color={colors.textMuted} style={{ opacity: 0.5, marginBottom: 15 }} />
-                         <Text style={styles.emptyText}>No data purchases yet.</Text>
-                     </View>
-                 ) : (
-                     historyData.map((order, idx) => (
-                         <View key={idx} style={styles.historyCard}>
-                             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
-                                 <Text style={{ color: '#FFF', fontWeight: '900', fontSize: 16 }}>{order.network} {order.bundleId}</Text>
-                                 <Text style={{ color: colors.primary, fontWeight: '900', fontSize: 16 }}>GHS {order.amount.toFixed(2)}</Text>
-                             </View>
-                             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
-                                 <Text style={{ color: colors.textMuted, fontSize: 13, fontWeight: '600' }}>To: {order.phone}</Text>
-                                 <Text style={{ color: colors.textMuted, fontSize: 13, fontWeight: '600' }}>{new Date(order.date).toLocaleString()}</Text>
-                             </View>
-                             <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)' }}>
-                                 <Text style={{ color: colors.textMuted, fontSize: 10, fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', opacity: 0.7 }}>Ref: {order.reference}</Text>
-                                 <Text style={{ color: '#4ADE80', fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.5 }}>{order.status}</Text>
-                             </View>
-                         </View>
-                     ))
-                 )}
-             </View>
+              <View style={styles.historyContainer}>
+                  {historyLoading ? (
+                      <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
+                  ) : historyData.length === 0 ? (
+                      <View style={styles.emptyState}>
+                          <Feather name="clock" size={48} color={colors.textMuted} style={{ opacity: 0.5, marginBottom: 15 }} />
+                          <Text style={styles.emptyText}>No data purchases yet.</Text>
+                      </View>
+                  ) : (
+                      historyData.map((order, idx) => (
+                          <View key={idx} style={styles.historyCard}>
+                              <View style={styles.historyRow}>
+                                  <Text style={styles.historyTitle}>{order.network} {order.bundleId}</Text>
+                                  <Text style={styles.historyPrice}>GHS {order.amount.toFixed(2)}</Text>
+                              </View>
+                              <View style={styles.historyRow}>
+                                  <Text style={styles.historySub}>To: {order.phone}</Text>
+                                  <Text style={styles.historySub}>{new Date(order.date).toLocaleDateString()}</Text>
+                              </View>
+                              <View style={styles.statusRow}>
+                                  <Text style={styles.refText}>Ref: {order.reference}</Text>
+                                  <View style={[styles.statusBadge, {backgroundColor: order.status === 'Completed' ? '#059669' : '#D97706'}]}>
+                                      <Text style={styles.statusText}>{order.status}</Text>
+                                  </View>
+                              </View>
+                              {order.network === 'MTN' && (
+                                  <View style={styles.peakNotice}>
+                                      <Feather name="info" size={12} color="#F59E0B" />
+                                      <Text style={styles.peakText}>MTN delivery: Instant - 4hrs during peak.</Text>
+                                  </View>
+                              )}
+                          </View>
+                      ))
+                  )}
+              </View>
+          )}
+
+          {/* VIEW 3: SUPPORT & COMMUNITY */}
+          {activeTab === 'support' && (
+            <View style={styles.supportContainer}>
+                <View style={styles.card}>
+                    <Text style={styles.supportTitle}>Delivery Information</Text>
+                    <View style={styles.faqBox}>
+                        <Text style={styles.faqQ}>When will my data arrive?</Text>
+                        <Text style={styles.faqA}>
+                           • <Text style={{color: '#4ADE80', fontWeight: 'bold'}}>Instant:</Text> Telecel & AirtelTigo.{"\n"}
+                           • <Text style={{color: '#FFCC00', fontWeight: 'bold'}}>Variable:</Text> MTN orders are mostly instant but can take <Text style={{color: '#FFF'}}>5 mins to 4 hours</Text> depending on network traffic.
+                        </Text>
+                    </View>
+                </View>
+
+                <TouchableOpacity style={styles.whatsappBtn} onPress={() => openWhatsApp("Hello Admin, I have a question about my data delivery.")}>
+                    <FontAwesome name="whatsapp" size={24} color="#FFF" />
+                    <Text style={styles.btnText}>Contact Admin via WhatsApp</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.communityBtn} onPress={joinCommunity}>
+                    <Feather name="users" size={24} color="#FFF" />
+                    <Text style={styles.btnText}>Join WhatsApp Community</Text>
+                </TouchableOpacity>
+                
+                <Text style={styles.communityNote}>Join the community to stay updated on network status and instant promos!</Text>
+            </View>
           )}
 
         </ScrollView>
@@ -310,39 +344,50 @@ const styles = StyleSheet.create({
   iconBox: { width: 60, height: 60, borderRadius: 20, backgroundColor: '#00987920', alignItems: 'center', justifyContent: 'center', marginBottom: 15, borderWidth: 1, borderColor: '#00987940' },
   title: { fontSize: 26, fontWeight: '900', color: colors.textPrimary },
   subtitle: { fontSize: 13, color: colors.textMuted, fontWeight: '600', marginTop: 4 },
-
   tabContainer: { flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: radius.lg, padding: 4, marginBottom: spacing.lg },
   tabBtn: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: radius.md },
   tabBtnActive: { backgroundColor: colors.primary },
   tabText: { color: colors.textMuted, fontWeight: '800', fontSize: 14 },
   tabTextActive: { color: '#FFF' },
-
   card: { backgroundColor: colors.cardBg, borderRadius: radius.xl, padding: spacing.lg, marginBottom: spacing.xl, borderWidth: 1, borderColor: colors.border },
   label: { fontSize: 12, fontWeight: '800', color: colors.textMuted, textTransform: 'uppercase', marginBottom: 12, marginTop: 15, letterSpacing: 0.5 },
-  
   networkRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
   netBtn: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.02)' },
   netText: { fontSize: 13, fontWeight: '800', color: colors.textSecondary },
-  
   inputBox: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, paddingHorizontal: 15, height: 55, backgroundColor: 'rgba(255,255,255,0.02)' },
   input: { flex: 1, fontSize: 18, fontWeight: '700', color: colors.textPrimary },
-  
   bundleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   bundleBtn: { width: '48%', paddingVertical: 15, paddingHorizontal: 10, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.02)' },
   bundleBtnActive: { borderColor: colors.primary, backgroundColor: colors.primary + '15' },
   bundleSize: { fontSize: 18, fontWeight: '900', color: colors.textPrimary },
   bundlePrice: { fontSize: 12, color: colors.textMuted, marginTop: 4, fontWeight: '700' },
-  
   receiptBox: { marginTop: 25, backgroundColor: 'rgba(0,0,0,0.2)', padding: 15, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border },
-  receiptRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  receiptRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   receiptText: { fontSize: 13, color: colors.textMuted, fontWeight: '600' },
-  receiptValue: { fontSize: 14, color: colors.textPrimary, fontWeight: '800', fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' },
-
-  payBtn: { backgroundColor: colors.primary, height: 60, borderRadius: radius.xl, alignItems: 'center', justifyContent: 'center', shadowColor: colors.primary, shadowOpacity: 0.3, shadowRadius: 10, elevation: 5 },
+  receiptValue: { fontSize: 14, color: colors.textPrimary, fontWeight: '800' },
+  payBtn: { backgroundColor: colors.primary, height: 60, borderRadius: radius.xl, alignItems: 'center', justifyContent: 'center' },
   payBtnText: { color: '#FFF', fontSize: 18, fontWeight: '900' },
-
   historyContainer: { marginTop: 10 },
   emptyState: { alignItems: 'center', marginTop: 40 },
   emptyText: { color: colors.textMuted, fontSize: 14, fontWeight: '600' },
-  historyCard: { backgroundColor: colors.cardBg, borderRadius: radius.lg, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: colors.border }
+  historyCard: { backgroundColor: colors.cardBg, borderRadius: radius.lg, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: colors.border },
+  historyRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
+  historyTitle: { color: '#FFF', fontWeight: '900', fontSize: 16 },
+  historyPrice: { color: colors.primary, fontWeight: '900', fontSize: 16 },
+  historySub: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
+  statusRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)' },
+  refText: { color: colors.textMuted, fontSize: 10, opacity: 0.7 },
+  statusBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  statusText: { color: '#FFF', fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
+  peakNotice: { flexDirection: 'row', alignItems: 'center', marginTop: 10, backgroundColor: 'rgba(245, 158, 11, 0.1)', padding: 8, borderRadius: 8, gap: 6 },
+  peakText: { color: '#F59E0B', fontSize: 10, fontWeight: '700', flex: 1 },
+  supportContainer: { gap: 15 },
+  supportTitle: { color: '#FFF', fontSize: 20, fontWeight: '900', marginBottom: 10 },
+  faqBox: { gap: 10 },
+  faqQ: { color: colors.primary, fontWeight: '800', fontSize: 14 },
+  faqA: { color: colors.textMuted, fontSize: 13, lineHeight: 20, fontWeight: '600' },
+  whatsappBtn: { backgroundColor: '#25D366', height: 60, borderRadius: radius.xl, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
+  communityBtn: { backgroundColor: colors.primary, height: 60, borderRadius: radius.xl, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
+  btnText: { color: '#FFF', fontSize: 16, fontWeight: '900' },
+  communityNote: { color: colors.textMuted, fontSize: 12, textAlign: 'center', marginTop: 5, paddingHorizontal: 20, fontWeight: '600' }
 });
