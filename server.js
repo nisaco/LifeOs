@@ -214,7 +214,7 @@ app.post('/api/paystack/webhook', async (req, res) => {
                       bundleId,
                       amount: event.data.amount / 100,
                       date: new Date(),
-                      status: 'Successful'
+                      status: 'Completed'
                     } 
                   } 
                 }
