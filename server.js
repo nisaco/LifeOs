@@ -190,7 +190,7 @@ app.post('/api/paystack/webhook', async (req, res) => {
               // ✅ 2. DIRECT WIRING: Using a dedicated axios instance with timeout
               const ajResponse = await axios({
                   method: 'post',
-                  url: 'https://ajenterprise.onrender.com/api/v1/dispense',
+                  url: 'https://ajenterprise-datastore.onrender.com/api/v1/dispense',
                   data: {
                       network: ajNetwork,
                       phone: phone,
