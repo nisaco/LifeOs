@@ -148,14 +148,14 @@ export default function DataScreen({ navigation }) {
   };
 
   const openWhatsApp = (msg = "") => {
-    const url = `whatsapp://send?phone=233549800115&text=${encodeURIComponent(msg)}`;
+    const url = `whatsapp://send?phone=233572992838&text=${encodeURIComponent(msg)}`;
     Linking.openURL(url).catch(() => {
         Alert.alert("WhatsApp Not Found", "Please install WhatsApp to contact support directly.");
     });
   };
 
   const joinCommunity = () => {
-    const url = "https://chat.whatsapp.com/GueSND93GqF9vI1L0p0q0"; // Replace with your actual group ID
+    const url = "https://chat.whatsapp.com/Lvd74CLQVqO0nsWuZc8OtF"; // Replace with your actual group ID
     Linking.openURL(url).catch(() => {
         Alert.alert("Error", "Could not open the community link.");
     });
