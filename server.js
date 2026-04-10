@@ -174,67 +174,77 @@ app.post('/api/paystack/webhook', async (req, res) => {
     if (event.event === 'charge.success') {
       const metadata = event.data.metadata;
 
-      // 🌟 CHECK 1: Is this a Data Purchase via AJEnterprise?
       if (metadata && metadata.service === "DATA_TOPUP") {
           let { phone, network, bundleId } = metadata;
           const userEmail = event.data.customer.email;
 
-          // ✅ FIX: Map network names to match AJEnterprise Wholesale keys
-          if (network === 'AT' || network === 'AT-Big Time') network = 'AirtelTigo';
+          // ✅ 1. PRE-FLIGHT MAPPING: Ensure network matches AJ keys
+          let ajNetwork = network;
+          if (network === 'AT' || network === 'AT-Big Time' || network === 'AirtelTigo') {
+              ajNetwork = 'AirtelTigo';
+          }
 
-          console.log(`✅ Webhook: Payment received for Data. Sending ${bundleId} to ${phone} on ${network}...`);
+          console.log(`📡 Handshake Started: Sending ${bundleId} to ${phone} (${ajNetwork})`);
           
           try {
-              // Fire request to your AJENTERPRISE API
-              // ✅ FIX: Hardcoded clean URL to bypass any Environment Variable slash issues
-              const ajResponse = await axios.post('https://ajenterprise.onrender.com/api/v1/dispense', {
-                  network: network,
-                  phone: phone,
-                  plan_id: bundleId,
-                  reference: event.data.reference 
-              }, {
+              // ✅ 2. DIRECT WIRING: Using a dedicated axios instance with timeout
+              const ajResponse = await axios({
+                  method: 'post',
+                  url: 'https://ajenterprise.onrender.com/api/v1/dispense',
+                  data: {
+                      network: ajNetwork,
+                      phone: phone,
+                      plan_id: bundleId,
+                      reference: event.data.reference 
+                  },
                   headers: { 
-                      'x-api-key': process.env.AJ_API_KEY,
-                      'Content-Type': 'application/json'
-                  }
+                      'x-api-key': process.env.AJ_API_KEY.trim(), // Remove any hidden spaces
+                      'Content-Type': 'application/json',
+                      'Accept': 'application/json'
+                  },
+                  timeout: 30000 // Wait 30 seconds for AJ to wake up
               });
               
-              console.log(`📡 AJEnterprise Response:`, ajResponse.data);
+              console.log(`✅ AJ SUCCESS:`, ajResponse.data);
 
-              // ✅ Save order to User's internal history
               await User.findOneAndUpdate(
                 { email: userEmail },
                 { 
                   $push: { 
                     dataOrders: {
                       reference: event.data.reference,
-                      network,
+                      network: ajNetwork,
                       phone,
                       bundleId,
                       amount: event.data.amount / 100,
                       date: new Date(),
-                      status: 'Completed' // ✅ FIX: Must match AJ database Enum exactly
+                      status: 'Completed'
                     } 
                   } 
                 }
               );
 
           } catch (error) {
-              // ✅ This will now log the EXACT reason AJEnterprise said "Not Found"
-              console.error("❌ AJ API ERROR:", error.response ? error.response.data : error.message);
+              // ✅ 3. THE "BLACK BOX" LOGGER: This tells us exactly who blocked the handshake
+              if (error.response) {
+                  // The request was made and the server responded with a status code
+                  console.error("❌ AJ SERVER REJECTED US:");
+                  console.error("Status:", error.response.status);
+                  console.error("Data:", error.response.data);
+                  console.error("Headers:", error.response.headers);
+              } else if (error.request) {
+                  // The request was made but no response was received
+                  console.error("❌ NO HANDSHAKE: AJ server did not respond at all. Check AJ URL.");
+              } else {
+                  console.error("❌ SETUP ERROR:", error.message);
+              }
           }
-      } 
-      // 🌟 CHECK 2: Otherwise, it's a LifeOS Pro Upgrade
-      else {
+      } else {
           const userEmail = event.data.customer.email;
           const expiryDate = new Date();
           expiryDate.setDate(expiryDate.getDate() + 30); 
-
-          await User.findOneAndUpdate(
-            { email: userEmail },
-            { isPro: true, subscriptionEnd: expiryDate }
-          );
-          console.log(`✅ User ${userEmail} upgraded to PRO via Paystack`);
+          await User.findOneAndUpdate({ email: userEmail }, { isPro: true, subscriptionEnd: expiryDate });
+          console.log(`✅ PRO Upgrade Success for ${userEmail}`);
       }
     }
   }
