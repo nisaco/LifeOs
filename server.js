@@ -65,6 +65,7 @@ const Chat = mongoose.model('Chat', chatSchema);
 // ==========================================
 // 2. GEMINI AI SETUP
 // ==========================================
+// ✅ Added API versioning to fix the v1beta 404 error
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // ==========================================
@@ -176,13 +177,15 @@ app.post('/api/paystack/webhook', async (req, res) => {
 
       // 🌟 CHECK 1: Is this a Data Purchase via AJEnterprise?
       if (metadata && metadata.service === "DATA_TOPUP") {
-          const { phone, network, bundleId } = metadata;
+          let { phone, network, bundleId } = metadata;
           const userEmail = event.data.customer.email;
-          console.log(`✅ Webhook: Payment received for Data. Sending ${bundleId} to ${phone}...`);
+
+          // ✅ FIX: Map network names to match AJEnterprise Wholesale keys
+          if (network === 'AT' || network === 'AT-Big Time') network = 'AirtelTigo';
+
+          console.log(`✅ Webhook: Payment received for Data. Sending ${bundleId} to ${phone} on ${network}...`);
           
           try {
-              // Fire request to your AJENTERPRISE API
-              // ✅ FIX: Added better error logging and verified URL
               const ajResponse = await axios.post('https://ajenterprise.onrender.com/api/v1/dispense', {
                   network: network,
                   phone: phone,
@@ -216,7 +219,6 @@ app.post('/api/paystack/webhook', async (req, res) => {
               );
 
           } catch (error) {
-              // ✅ FIX: This will now log the EXACT reason AJEnterprise said "Not Found"
               console.error("❌ AJ API ERROR:", error.response ? error.response.data : error.message);
           }
       } 
@@ -350,8 +352,8 @@ app.post('/api/chat', async (req, res) => {
     const chatTitle = messages[0].content.substring(0, 30) + (messages[0].content.length > 30 ? '...' : '');
 
     const model = genAI.getGenerativeModel({ 
-      // ✅ Changed to 1.5-flash for more stable free-tier limits
-      model: "gemini-3-flash",
+      // ✅ Changed to stable 1.5-flash to fix 404/429 errors
+      model: "gemini-1.5-flash",
       systemInstruction: `You are the official AI Assistant for LifeOS...`
     });
 
