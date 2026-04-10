@@ -356,7 +356,7 @@ app.post('/api/chat', async (req, res) => {
 
     const model = genAI.getGenerativeModel({ 
       // ✅ FIX: Use the full path models/ prefix to resolve the 404 error
-      model: "gemini-2.5-flash",
+      model: "gemini-3-flash",
       systemInstruction: `You are the official AI Assistant for LifeOS...`
     });
 
