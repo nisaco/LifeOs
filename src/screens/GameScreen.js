@@ -15,7 +15,7 @@ let socket;
 
 export default function GameScreen({ navigation }) {
   // ==========================================
-  // ORIGINAL STATE LOGIC (ALL PRESERVED)
+  // STATE LOGIC
   // ==========================================
   const [isPro, setIsPro] = useState(false);
   const [playMode, setPlayMode] = useState('menu'); 
@@ -31,7 +31,7 @@ export default function GameScreen({ navigation }) {
   const [isOffline, setIsOffline] = useState(false);
 
   // ==========================================
-  // ORIGINAL OFFLINE & SOCKET LOGIC (PRESERVED)
+  // LISTENERS
   // ==========================================
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener(state => {
@@ -77,7 +77,7 @@ export default function GameScreen({ navigation }) {
   }, [playMode, isOffline]);
 
   // ==========================================
-  // LOGIC FUNCTIONS (FIXED - ADDED BACK)
+  // LOGIC FUNCTIONS
   // ==========================================
   const calculateWinner = (squares) => {
     const lines = [[0,1,2], [3,4,5], [6,7,8], [0,3,6], [1,4,7], [2,5,8], [0,4,8], [2,4,6]];
@@ -103,9 +103,8 @@ export default function GameScreen({ navigation }) {
     setJoinCode('');
   };
 
-  // ✅ THE CRITICAL FIX: Restored these functions into the component scope
   const createMultiplayerMatch = () => {
-    if (isOffline) return Alert.alert("Offline", "Internet connection required to host.");
+    if (isOffline) return Alert.alert("Offline", "Connection required.");
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
     setMyCode(code);
     setMultiState('waiting');
@@ -113,7 +112,7 @@ export default function GameScreen({ navigation }) {
   };
 
   const handleJoinMatch = () => {
-    if (isOffline) return Alert.alert("Offline", "Internet connection required to join.");
+    if (isOffline) return Alert.alert("Offline", "Connection required.");
     if (joinCode.length === 6) {
       socket.emit('join_room', joinCode);
       setMultiState('waiting');
@@ -129,6 +128,10 @@ export default function GameScreen({ navigation }) {
     setStartingPlayer(newStarter);
     setBoard(Array(9).fill(null));
     setXIsNext(newStarter === 'X'); 
+    
+    if (playMode === 'multi' && !isOffline) {
+        socket.emit('make_move', { room: myCode || joinCode, board: Array(9).fill(null), xIsNext: newStarter === 'X' });
+    }
   };
 
   const makeAIMove = () => {
@@ -136,20 +139,18 @@ export default function GameScreen({ navigation }) {
     if (available.length === 0) return;
     let move = available[Math.floor(Math.random() * available.length)]; 
 
-    if (difficulty === 'Medium' || difficulty === 'Hard') {
-        const findWinningMove = (p) => {
+    if (difficulty !== 'Easy') {
+        const findBest = (p) => {
             for (let i = 0; i < 9; i++) {
                 if (board[i] === null) {
-                    const copy = [...board]; copy[i] = p;
-                    if (calculateWinner(copy) === p) return i;
+                    const cp = [...board]; cp[i] = p;
+                    if (calculateWinner(cp) === p) return i;
                 }
             }
             return null;
         };
-      let smartMove = findWinningMove('O') ?? findWinningMove('X');
-      if (smartMove !== null && (difficulty === 'Hard' || Math.random() > 0.3)) {
-        move = smartMove;
-      }
+      let smartMove = findBest('O') ?? findBest('X');
+      if (smartMove !== null) move = smartMove;
     }
     const newBoard = [...board];
     newBoard[move] = 'O';
@@ -162,14 +163,12 @@ export default function GameScreen({ navigation }) {
       const timer = setTimeout(() => makeAIMove(), 600); 
       return () => clearTimeout(timer);
     }
-  }, [xIsNext, board, playMode]);
+  }, [xIsNext, board]);
 
   const handlePress = (index) => {
     if (board[index] || calculateWinner(board)) return;
-    if (playMode === 'multi') {
-      const currentTurnSymbol = xIsNext ? 'X' : 'O';
-      if (currentTurnSymbol !== playerSymbol) return;
-    }
+    if (playMode === 'multi' && (xIsNext ? 'X' : 'O') !== playerSymbol) return;
+
     const newBoard = [...board];
     newBoard[index] = xIsNext ? 'X' : 'O';
     setBoard(newBoard);
@@ -216,7 +215,16 @@ export default function GameScreen({ navigation }) {
         ) : (
           <View style={styles.gameSection}>
             <View style={styles.gameHeader}>
-              <TouchableOpacity onPress={() => { setPlayMode('menu'); fullReset(); }} style={styles.iconBtn}>
+              <TouchableOpacity 
+                onPress={() => {
+                    // ✅ PREVENTION: Don't allow leaving an active multiplayer match
+                    if (playMode === 'multi' && !winner && !isDraw) {
+                        return Alert.alert("Match in Progress", "You cannot leave until the game ends!");
+                    }
+                    setPlayMode('menu'); fullReset(); 
+                }} 
+                style={styles.iconBtn}
+              >
                 <Feather name="grid" size={20} color={colors.textSecondary} />
               </TouchableOpacity>
               <View>
@@ -227,18 +235,9 @@ export default function GameScreen({ navigation }) {
             </View>
 
             <View style={styles.scoreboard}>
-                <View style={styles.scoreItem}>
-                    <Text style={styles.scoreLabel}>YOU (X)</Text>
-                    <Text style={[styles.scoreValue, {color: colors.primary}]}>{scores.X}</Text>
-                </View>
-                <View style={[styles.scoreItem, {borderLeftWidth: 1, borderRightWidth: 1, borderColor: '#334155'}]}>
-                    <Text style={styles.scoreLabel}>DRAWS</Text>
-                    <Text style={[styles.scoreValue, {color: colors.textSecondary}]}>{scores.draws}</Text>
-                </View>
-                <View style={styles.scoreItem}>
-                    <Text style={styles.scoreLabel}>{playMode === 'ai' ? 'AI (O)' : 'OPP (O)'}</Text>
-                    <Text style={[styles.scoreValue, {color: colors.secondary}]}>{scores.O}</Text>
-                </View>
+                <View style={styles.scoreItem}><Text style={styles.scoreLabel}>YOU (X)</Text><Text style={[styles.scoreValue, {color: colors.primary}]}>{scores.X}</Text></View>
+                <View style={[styles.scoreItem, {borderLeftWidth: 1, borderRightWidth: 1, borderColor: '#334155'}]}><Text style={styles.scoreLabel}>DRAWS</Text><Text style={[styles.scoreValue, {color: '#FFF'}]}>{scores.draws}</Text></View>
+                <View style={styles.scoreItem}><Text style={styles.scoreLabel}>{playMode === 'ai' ? 'AI (O)' : 'OPP (O)'}</Text><Text style={[styles.scoreValue, {color: colors.secondary}]}>{scores.O}</Text></View>
             </View>
 
             {playMode === 'ai' && (
@@ -247,7 +246,7 @@ export default function GameScreen({ navigation }) {
                   <TouchableOpacity 
                     key={diff} 
                     onPress={() => {
-                      if (diff === 'Hard' && !isPro) return Alert.alert("LifeOS Pro", "Upgrade required for Hard AI.");
+                      if (diff === 'Hard' && !isPro) return Alert.alert("Pro Feature", "Hard AI requires LifeOS Pro.");
                       setDifficulty(diff); setBoard(Array(9).fill(null)); setXIsNext(true);
                     }}
                     style={[styles.diffBtn, difficulty === diff && { backgroundColor: colors.secondary }]}
@@ -261,14 +260,10 @@ export default function GameScreen({ navigation }) {
 
             {playMode === 'multi' && multiState === 'menu' && (
                 <View style={styles.lobby}>
-                    <TouchableOpacity style={styles.hostBtn} onPress={createMultiplayerMatch}>
-                        <Text style={styles.hostBtnText}>Generate Match Code</Text>
-                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.hostBtn} onPress={createMultiplayerMatch}><Text style={styles.hostBtnText}>Generate Match Code</Text></TouchableOpacity>
                     <View style={styles.joinRow}>
                         <TextInput style={styles.lobbyInput} placeholder="CODE" placeholderTextColor="#666" value={joinCode} onChangeText={setJoinCode} maxLength={6} autoCapitalize="characters" />
-                        <TouchableOpacity style={styles.lobbyJoinBtn} onPress={handleJoinMatch}>
-                            <Text style={styles.lobbyJoinText}>Join</Text>
-                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.lobbyJoinBtn} onPress={handleJoinMatch}><Text style={styles.lobbyJoinText}>Join</Text></TouchableOpacity>
                     </View>
                 </View>
             )}
@@ -276,7 +271,7 @@ export default function GameScreen({ navigation }) {
             {multiState === 'waiting' && (
                 <View style={styles.waitingRoom}>
                     <ActivityIndicator color={colors.secondary} />
-                    <Text style={styles.waitingText}>{myCode ? "Share this code:" : "Connecting..."}</Text>
+                    <Text style={styles.waitingText}>{myCode ? "Share code:" : "Connecting..."}</Text>
                     {myCode && <View style={styles.codeBox}><Text style={styles.codeText}>{myCode}</Text></View>}
                     <TouchableOpacity onPress={() => setMultiState('menu')}><Text style={{color: colors.danger, marginTop: 15}}>Cancel Match</Text></TouchableOpacity>
                 </View>
@@ -299,12 +294,21 @@ export default function GameScreen({ navigation }) {
                   ))}
                 </View>
 
-                <TouchableOpacity 
-                    style={styles.resetBtn} 
-                    onPress={() => { if (winner || isDraw) nextRound(winner, isDraw); else setBoard(Array(9).fill(null)); }}
-                >
-                    <Text style={styles.resetBtnText}>{winner || isDraw ? "Next Round" : "Restart Game"}</Text>
-                </TouchableOpacity>
+                {/* ✅ LOCKING LOGIC: In multiplayer, show reset buttons ONLY when game ends */}
+                {(winner || isDraw) ? (
+                    <View style={{width: '100%', gap: 10, marginTop: 25}}>
+                        <PrimaryButton label="Next Round" onPress={() => nextRound(winner, isDraw)} color={colors.primary} />
+                        <TouchableOpacity onPress={() => { setPlayMode('menu'); fullReset(); }} style={styles.resetBtn}>
+                            <Text style={styles.resetBtnText}>End Match</Text>
+                        </TouchableOpacity>
+                    </View>
+                ) : (
+                    playMode === 'ai' && (
+                        <TouchableOpacity style={styles.resetBtn} onPress={() => setBoard(Array(9).fill(null))}>
+                            <Text style={styles.resetBtnText}>Restart Game</Text>
+                        </TouchableOpacity>
+                    )
+                )}
               </View>
             )}
           </View>
@@ -318,24 +322,24 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { marginBottom: 30 },
   headerTitle: { fontSize: 32, fontWeight: '900', color: '#FFF', letterSpacing: -1 },
-  headerSub: { fontSize: 14, color: colors.textMuted, fontWeight: '600' },
+  headerSub: { fontSize: 14, color: '#94A3B8', fontWeight: '600' },
   menuGrid: { gap: 15 },
   menuCard: { backgroundColor: '#1E293B', padding: 25, borderRadius: 24, alignItems: 'center', borderWidth: 1, borderColor: '#334155' },
   iconCircle: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', marginBottom: 15 },
   menuTitle: { fontSize: 18, fontWeight: '900', color: '#FFF' },
-  menuSubText: { fontSize: 13, color: colors.textMuted, fontWeight: '600', marginTop: 4 },
+  menuSubText: { fontSize: 13, color: '#94A3B8', fontWeight: '600', marginTop: 4 },
   gameSection: { backgroundColor: '#1E293B', borderRadius: 24, padding: 20, borderWidth: 1, borderColor: '#334155' },
   gameHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
   iconBtn: { padding: 8, backgroundColor: '#0F172A', borderRadius: 10 },
   gameTitle: { color: '#FFF', fontSize: 18, fontWeight: '900' },
-  gameSubText: { color: colors.textMuted, fontSize: 11, fontWeight: '800' },
+  gameSubText: { color: '#94A3B8', fontSize: 11, fontWeight: '800' },
   scoreboard: { flexDirection: 'row', backgroundColor: '#0F172A', borderRadius: 15, padding: 10, marginBottom: 20 },
   scoreItem: { flex: 1, alignItems: 'center' },
-  scoreLabel: { fontSize: 9, fontWeight: '800', color: colors.textMuted },
+  scoreLabel: { fontSize: 9, fontWeight: '800', color: '#94A3B8' },
   scoreValue: { fontSize: 20, fontWeight: '900' },
   diffContainer: { flexDirection: 'row', gap: 5, marginBottom: 20 },
   diffBtn: { flex: 1, paddingVertical: 8, borderRadius: 10, backgroundColor: '#0F172A', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 4 },
-  diffText: { fontSize: 11, fontWeight: '900', color: colors.textMuted },
+  diffText: { fontSize: 11, fontWeight: '900', color: '#94A3B8' },
   lobby: { gap: 15 },
   hostBtn: { backgroundColor: colors.primary, padding: 15, borderRadius: 12, alignItems: 'center' },
   hostBtnText: { color: '#FFF', fontWeight: '900' },
@@ -344,7 +348,7 @@ const styles = StyleSheet.create({
   lobbyJoinBtn: { backgroundColor: colors.secondary, paddingHorizontal: 25, borderRadius: 12, justifyContent: 'center' },
   lobbyJoinText: { color: '#FFF', fontWeight: '900' },
   waitingRoom: { alignItems: 'center', padding: 20 },
-  waitingText: { color: colors.textMuted, marginVertical: 10, fontWeight: '700' },
+  waitingText: { color: '#94A3B8', marginVertical: 10, fontWeight: '700' },
   codeBox: { backgroundColor: colors.secondary + '20', padding: 15, borderRadius: 15, borderWidth: 1, borderColor: colors.secondary },
   codeText: { fontSize: 24, fontWeight: '900', color: colors.secondary, letterSpacing: 5 },
   boardWrapper: { alignItems: 'center' },
@@ -352,6 +356,6 @@ const styles = StyleSheet.create({
   statusBadgeText: { color: '#FFF', fontWeight: '900', fontSize: 12 },
   grid: { width: 280, height: 280, flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center' },
   cell: { width: 85, height: 85, backgroundColor: '#0F172A', borderRadius: 15, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#334155' },
-  resetBtn: { padding: 15, borderRadius: 15, alignItems: 'center', backgroundColor: '#0F172A', borderWidth: 1, borderColor: '#334155', width: '100%', marginTop: 25 },
-  resetBtnText: { color: colors.textSecondary, fontWeight: '800' }
+  resetBtn: { padding: 15, borderRadius: 15, alignItems: 'center', backgroundColor: '#0F172A', borderWidth: 1, borderColor: '#334155', width: '100%', marginTop: 10 },
+  resetBtnText: { color: '#94A3B8', fontWeight: '800' }
 });
