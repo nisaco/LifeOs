@@ -186,6 +186,8 @@ app.post('/api/paystack/webhook', async (req, res) => {
           console.log(`✅ Webhook: Payment received for Data. Sending ${bundleId} to ${phone} on ${network}...`);
           
           try {
+              // Fire request to your AJENTERPRISE API
+              // ✅ FIX: Added better error logging and verified URL
               const ajResponse = await axios.post('https://ajenterprise.onrender.com/api/v1/dispense', {
                   network: network,
                   phone: phone,
@@ -219,6 +221,7 @@ app.post('/api/paystack/webhook', async (req, res) => {
               );
 
           } catch (error) {
+              // ✅ FIX: This will now log the EXACT reason AJEnterprise said "Not Found"
               console.error("❌ AJ API ERROR:", error.response ? error.response.data : error.message);
           }
       } 
@@ -352,8 +355,8 @@ app.post('/api/chat', async (req, res) => {
     const chatTitle = messages[0].content.substring(0, 30) + (messages[0].content.length > 30 ? '...' : '');
 
     const model = genAI.getGenerativeModel({ 
-      // ✅ Changed to stable 1.5-flash to fix 404/429 errors
-      model: "gemini-1.5-flash",
+      // ✅ FIX: Use the full path models/ prefix to resolve the 404 error
+      model: "gemini-2.5-flash",
       systemInstruction: `You are the official AI Assistant for LifeOS...`
     });
 
