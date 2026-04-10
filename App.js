@@ -1,102 +1,54 @@
-import React, { useState, useEffect } from 'react'; 
+import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Platform } from 'react-native';
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
-import { View, Text, ActivityIndicator } from 'react-native';
-import { Feather } from '@expo/vector-icons';
 
 // Screen Imports
 import HomeScreen from './src/screens/HomeScreen';
 import ChatScreen from './src/screens/ChatScreen';
 import TasksScreen from './src/screens/TasksScreen';
 import BudgetScreen from './src/screens/BudgetScreen';
-import HealthScreen from './src/screens/HealthScreen';
 import FocusScreen from './src/screens/FocusScreen';
 import GameScreen from './src/screens/GameScreen';
-import WelcomeScreen from './src/screens/WelcomeScreen'; 
-import AuthScreen from './src/screens/AuthScreen'; 
-import DataScreen from './src/screens/DataScreen'; 
+import DataScreen from './src/screens/DataScreen';
+import AuthScreen from './src/screens/AuthScreen';
 
-// Utility Imports
 import { colors } from './src/utils/theme';
-import { Storage } from './src/utils/storage'; 
+import { Storage } from './src/utils/storage';
 
 const Tab = createBottomTabNavigator();
+const { width } = Dimensions.get('window');
 
-const TAB_ICONS = {
-  Home:   { icon: 'home', label: 'Home', color: colors.primary },
-  Chat:   { icon: 'message-circle', label: 'AI', color: colors.chat },
-  Tasks:  { icon: 'check-square', label: 'Tasks', color: colors.tasks },
-  Budget: { icon: 'credit-card', label: 'Budget', color: colors.budget },
-  Health: { icon: 'activity', label: 'Health', color: colors.health },
-  Focus:  { icon: 'clock', label: 'Focus', color: colors.focus },
-  Game:   { icon: 'crosshair', label: 'Games', color: colors.secondary },
+// Premium Color Mapping from your template
+const UI_COLORS = {
+  Home: colors.primary,
+  Tasks: '#43E8D8',
+  Budget: '#FFD166',
+  Chat: '#6C63FF',
+  Focus: '#FF6584',
+  Game: '#FF6584',
+  Data: '#43E8D8'
 };
 
-function TabIcon({ name, focused }) {
-  const tabInfo = TAB_ICONS[name];
-  if (!tabInfo) return null; 
-
-  const { icon, label, color } = tabInfo;
-  
-  return (
-    <View style={{ alignItems: 'center', justifyContent: 'center', paddingTop: 12 }}>
-      <Feather name={icon} size={22} color={focused ? color : colors.textMuted} />
-      <Text style={{ fontSize: 10, fontWeight: focused ? '800' : '600', color: focused ? color : colors.textMuted, marginTop: 4 }}>
-        {label}
-      </Text>
-    </View>
-  );
-}
-
 export default function App() {
-  const [isInitializing, setIsInitializing] = useState(true);
-  const [showWelcome, setShowWelcome] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
 
   useEffect(() => {
     checkAuth();
   }, []);
 
   async function checkAuth() {
-    const savedUserId = await Storage.get('lifeos_user_id');
-    if (savedUserId) {
-      setIsAuthenticated(true);
-      setShowWelcome(false); 
-    } else {
-      setIsAuthenticated(false);
-    }
+    const userId = await Storage.get('lifeos_user_id');
+    setIsAuthenticated(!!userId);
     setIsInitializing(false);
   }
 
-  if (isInitializing) {
-    return (
-      <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
-  }
+  if (isInitializing) return null;
 
-  if (!isAuthenticated) {
-    return (
-      <>
-        <StatusBar style="light" />
-        <AuthScreen onComplete={() => {
-          setIsAuthenticated(true);
-          setShowWelcome(true); 
-        }} />
-      </>
-    );
-  }
-
-  if (showWelcome) {
-    return (
-      <>
-        <StatusBar style="light" />
-        <WelcomeScreen onComplete={() => setShowWelcome(false)} />
-      </>
-    );
-  }
+  if (!isAuthenticated) return <AuthScreen onComplete={() => setIsAuthenticated(true)} />;
 
   return (
     <NavigationContainer>
@@ -105,36 +57,44 @@ export default function App() {
         screenOptions={({ route }) => ({
           headerShown: false,
           tabBarShowLabel: false,
-          tabBarStyle: {
-            backgroundColor: colors.bgCard,
-            borderTopColor: colors.border,
-            borderTopWidth: 1,
-            height: 72,
-            paddingBottom: 12,
-            tabBarHideOnKeyboard: true, 
-          },
-          tabBarIcon: ({ focused }) => (
-            <TabIcon name={route.name} focused={focused} />
-          ),
+          tabBarStyle: styles.tabBar,
+          tabBarIcon: ({ focused }) => {
+            const iconName = {
+              Home: 'home', Chat: 'message-circle', Tasks: 'check-square',
+              Budget: 'credit-card', Focus: 'clock', Game: 'crosshair'
+            }[route.name];
+            const color = focused ? UI_COLORS[route.name] : '#5A5A80';
+            return (
+              <View style={styles.tabIconWrapper}>
+                <Feather name={iconName} size={22} color={color} />
+                <Text style={[styles.tabLabel, { color, fontWeight: focused ? '900' : '600' }]}>{route.name}</Text>
+              </View>
+            );
+          }
         })}
       >
-        <Tab.Screen name="Home"   component={HomeScreen} />
-        <Tab.Screen name="Chat"   component={ChatScreen} />
-        <Tab.Screen name="Tasks"  component={TasksScreen} />
+        <Tab.Screen name="Home" component={HomeScreen} />
+        <Tab.Screen name="Tasks" component={TasksScreen} />
         <Tab.Screen name="Budget" component={BudgetScreen} />
-        <Tab.Screen name="Health" component={HealthScreen} />
-        <Tab.Screen name="Focus"  component={FocusScreen} />
-        <Tab.Screen name="Game"   component={GameScreen} />
-        
-        <Tab.Screen 
-            name="DataScreen" 
-            component={DataScreen} 
-            options={{
-                // ✅ Hides the icon so it doesn't mess up spacing, but KEEPS the bar visible!
-                tabBarButton: () => null 
-            }}
-        />
+        <Tab.Screen name="Chat" component={ChatScreen} />
+        <Tab.Screen name="Focus" component={FocusScreen} />
+        <Tab.Screen name="Game" component={GameScreen} />
+        <Tab.Screen name="Data" component={DataScreen} options={{ tabBarButton: () => null }} />
       </Tab.Navigator>
     </NavigationContainer>
   );
 }
+
+const styles = StyleSheet.create({
+  tabBar: {
+    position: 'absolute',
+    backgroundColor: 'rgba(21, 21, 37, 0.95)',
+    borderTopColor: '#2A2A45',
+    height: 85,
+    paddingBottom: Platform.OS === 'ios' ? 25 : 15,
+    elevation: 0,
+    borderTopWidth: 1,
+  },
+  tabIconWrapper: { alignItems: 'center', justifyContent: 'center', paddingTop: 10 },
+  tabLabel: { fontSize: 10, marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.5 }
+});
