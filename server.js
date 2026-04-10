@@ -187,7 +187,7 @@ app.post('/api/paystack/webhook', async (req, res) => {
           
           try {
               // Fire request to your AJENTERPRISE API
-              // ✅ FIX: Added better error logging and verified URL
+              // ✅ FIX: Hardcoded clean URL to bypass any Environment Variable slash issues
               const ajResponse = await axios.post('https://ajenterprise.onrender.com/api/v1/dispense', {
                   network: network,
                   phone: phone,
@@ -221,7 +221,7 @@ app.post('/api/paystack/webhook', async (req, res) => {
               );
 
           } catch (error) {
-              // ✅ FIX: This will now log the EXACT reason AJEnterprise said "Not Found"
+              // ✅ This will now log the EXACT reason AJEnterprise said "Not Found"
               console.error("❌ AJ API ERROR:", error.response ? error.response.data : error.message);
           }
       } 
