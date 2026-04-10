@@ -18,7 +18,7 @@ export default function GameScreen({ navigation }) {
   // ORIGINAL STATE LOGIC (ALL PRESERVED)
   // ==========================================
   const [isPro, setIsPro] = useState(false);
-  const [playMode, setPlayMode] = useState('menu'); 
+  const [playMode, setPlayMode] = useState('menu'); // 'menu', 'ai', 'multi'
   const [difficulty, setDifficulty] = useState('Medium');
   const [board, setBoard] = useState(Array(9).fill(null));
   const [startingPlayer, setStartingPlayer] = useState('X');
@@ -77,7 +77,7 @@ export default function GameScreen({ navigation }) {
   }, [playMode, isOffline]);
 
   // ==========================================
-  // LOGIC FUNCTIONS (FIXED - ADDED BACK)
+  // ORIGINAL GAME ENGINE (PRESERVED)
   // ==========================================
   const calculateWinner = (squares) => {
     const lines = [[0,1,2], [3,4,5], [6,7,8], [0,3,6], [1,4,7], [2,5,8], [0,4,8], [2,4,6]];
@@ -90,46 +90,12 @@ export default function GameScreen({ navigation }) {
 
   const getAvailableMoves = (squares) => squares.map((val, idx) => val === null ? idx : null).filter(val => val !== null);
 
-  const fullReset = () => {
-    if (socket && playMode === 'multi' && !isOffline) {
-       socket.emit('leave_room', myCode || joinCode);
+  useEffect(() => {
+    if (playMode === 'ai' && !xIsNext && !calculateWinner(board)) {
+      const timer = setTimeout(() => makeAIMove(), 600); 
+      return () => clearTimeout(timer);
     }
-    setBoard(Array(9).fill(null));
-    setStartingPlayer('X');
-    setXIsNext(true);
-    setScores({ X: 0, O: 0, draws: 0 });
-    setMultiState('menu');
-    setMyCode('');
-    setJoinCode('');
-  };
-
-  // ✅ THE CRITICAL FIX: Restored these functions into the component scope
-  const createMultiplayerMatch = () => {
-    if (isOffline) return Alert.alert("Offline", "Internet connection required to host.");
-    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-    setMyCode(code);
-    setMultiState('waiting');
-    socket.emit('create_room', code);
-  };
-
-  const handleJoinMatch = () => {
-    if (isOffline) return Alert.alert("Offline", "Internet connection required to join.");
-    if (joinCode.length === 6) {
-      socket.emit('join_room', joinCode);
-      setMultiState('waiting');
-    } else {
-      Alert.alert("Invalid Code", "Please enter a 6-digit code.");
-    }
-  };
-
-  const nextRound = (winner, isDraw) => {
-    if (winner) setScores(s => ({ ...s, [winner]: s[winner] + 1 }));
-    else if (isDraw) setScores(s => ({ ...s, draws: s.draws + 1 }));
-    const newStarter = startingPlayer === 'X' ? 'O' : 'X';
-    setStartingPlayer(newStarter);
-    setBoard(Array(9).fill(null));
-    setXIsNext(newStarter === 'X'); 
-  };
+  }, [xIsNext, board, playMode]);
 
   const makeAIMove = () => {
     const available = getAvailableMoves(board);
@@ -137,16 +103,14 @@ export default function GameScreen({ navigation }) {
     let move = available[Math.floor(Math.random() * available.length)]; 
 
     if (difficulty === 'Medium' || difficulty === 'Hard') {
-        const findWinningMove = (p) => {
-            for (let i = 0; i < 9; i++) {
-                if (board[i] === null) {
-                    const copy = [...board]; copy[i] = p;
-                    if (calculateWinner(copy) === p) return i;
-                }
-            }
-            return null;
-        };
-      let smartMove = findWinningMove('O') ?? findWinningMove('X');
+      let smartMove = findBestMove('O') ?? findBestMove('X');
+      if (smartMove === null && difficulty === 'Hard') {
+        if (board[4] === null) smartMove = 4; 
+        else {
+          const corners = [0, 2, 6, 8].filter(c => board[c] === null);
+          if (corners.length > 0) smartMove = corners[Math.floor(Math.random() * corners.length)];
+        }
+      }
       if (smartMove !== null && (difficulty === 'Hard' || Math.random() > 0.3)) {
         move = smartMove;
       }
@@ -157,12 +121,17 @@ export default function GameScreen({ navigation }) {
     setXIsNext(true);
   };
 
-  useEffect(() => {
-    if (playMode === 'ai' && !xIsNext && !calculateWinner(board)) {
-      const timer = setTimeout(() => makeAIMove(), 600); 
-      return () => clearTimeout(timer);
+  const findBestMove = (player) => {
+    const lines = [[0,1,2], [3,4,5], [6,7,8], [0,3,6], [1,4,7], [2,5,8], [0,4,8], [2,4,6]];
+    for (let i = 0; i < lines.length; i++) {
+      const [a, b, c] = lines[i];
+      const vals = [board[a], board[b], board[c]];
+      if (vals.filter(v => v === player).length === 2 && vals.filter(v => v === null).length === 1) {
+        return [a, b, c].find(idx => board[idx] === null);
+      }
     }
-  }, [xIsNext, board, playMode]);
+    return null;
+  };
 
   const handlePress = (index) => {
     if (board[index] || calculateWinner(board)) return;
@@ -180,24 +149,72 @@ export default function GameScreen({ navigation }) {
     }
   };
 
+  const fullReset = () => {
+    if (socket && playMode === 'multi' && !isOffline) {
+       socket.emit('leave_room', myCode || joinCode);
+    }
+    setBoard(Array(9).fill(null));
+    setStartingPlayer('X');
+    setXIsNext(true);
+    setScores({ X: 0, O: 0, draws: 0 });
+    setMultiState('menu');
+    setMyCode('');
+    setJoinCode('');
+  };
+
+  const nextRound = (winner, isDraw) => {
+    if (winner) {
+      setScores(s => ({ ...s, [winner]: s[winner] + 1 }));
+    } else if (isDraw) {
+      setScores(s => ({ ...s, draws: s.draws + 1 }));
+    }
+    const newStarter = startingPlayer === 'X' ? 'O' : 'X';
+    setStartingPlayer(newStarter);
+    setBoard(Array(9).fill(null));
+    setXIsNext(newStarter === 'X'); 
+  };
+
+  const createMultiplayerMatch = () => {
+    if (isOffline) return Alert.alert("Offline", "Internet connection required.");
+    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+    setMyCode(code);
+    setMultiState('waiting');
+    socket.emit('create_room', code);
+  };
+
+  const handleJoinMatch = () => {
+    if (isOffline) return Alert.alert("Offline", "Internet connection required.");
+    if (joinCode.length === 6) {
+      socket.emit('join_room', joinCode);
+      setMultiState('waiting');
+    } else {
+      Alert.alert("Invalid Code", "Please enter a 6-digit code.");
+    }
+  };
+
   const winner = calculateWinner(board);
   const isDraw = !winner && getAvailableMoves(board).length === 0;
 
   // ==========================================
-  // UI RENDER
+  // UI RENDER (ADVANCED UPGRADE)
   // ==========================================
   return (
     <LinearGradient colors={['#0F172A', '#000000']} style={styles.container}>
       <ScrollView contentContainerStyle={{ padding: spacing.md, paddingTop: 60, paddingBottom: 100 }}>
         
+        {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Game Center</Text>
           <Text style={styles.headerSub}>Take a quick break</Text>
         </View>
 
-        {playMode === 'menu' ? (
+        {/* Menu View */}
+        {playMode === 'menu' && (
           <View style={styles.menuGrid}>
-            <TouchableOpacity onPress={() => { setPlayMode('ai'); setBoard(Array(9).fill(null)); }} style={styles.menuCard}>
+            <TouchableOpacity 
+              onPress={() => { setPlayMode('ai'); setBoard(Array(9).fill(null)); }}
+              style={styles.menuCard}
+            >
               <View style={[styles.iconCircle, { backgroundColor: colors.secondary + '20' }]}>
                 <MaterialCommunityIcons name="robot" size={32} color={colors.secondary} />
               </View>
@@ -205,7 +222,10 @@ export default function GameScreen({ navigation }) {
               <Text style={styles.menuSubText}>Practice offline</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => { if (!isOffline) { setPlayMode('multi'); fullReset(); } }} style={[styles.menuCard, isOffline && { opacity: 0.5 }]}>
+            <TouchableOpacity 
+              onPress={() => { if (!isOffline) setPlayMode('multi'); }}
+              style={[styles.menuCard, isOffline && { opacity: 0.5 }]}
+            >
               <View style={[styles.iconCircle, { backgroundColor: colors.primary + '20' }]}>
                 <Feather name="users" size={32} color={colors.primary} />
               </View>
@@ -213,8 +233,13 @@ export default function GameScreen({ navigation }) {
               <Text style={styles.menuSubText}>Challenge friends</Text>
             </TouchableOpacity>
           </View>
-        ) : (
-          <View style={styles.gameSection}>
+        )}
+
+        {/* Active Game / Lobby View */}
+        {playMode !== 'menu' && (
+          <Card style={styles.gameSection}>
+            
+            {/* Context Header */}
             <View style={styles.gameHeader}>
               <TouchableOpacity onPress={() => { setPlayMode('menu'); fullReset(); }} style={styles.iconBtn}>
                 <Feather name="grid" size={20} color={colors.textSecondary} />
@@ -226,6 +251,7 @@ export default function GameScreen({ navigation }) {
               <MaterialCommunityIcons name="trophy" size={24} color={winner ? '#FFD700' : colors.textMuted} />
             </View>
 
+            {/* Scoreboard */}
             <View style={styles.scoreboard}>
                 <View style={styles.scoreItem}>
                     <Text style={styles.scoreLabel}>YOU (X)</Text>
@@ -241,14 +267,15 @@ export default function GameScreen({ navigation }) {
                 </View>
             </View>
 
+            {/* AI Settings */}
             {playMode === 'ai' && (
               <View style={styles.diffContainer}>
                 {DIFFICULTIES.map(diff => (
                   <TouchableOpacity 
                     key={diff} 
                     onPress={() => {
-                      if (diff === 'Hard' && !isPro) return Alert.alert("LifeOS Pro", "Upgrade required for Hard AI.");
-                      setDifficulty(diff); setBoard(Array(9).fill(null)); setXIsNext(true);
+                      if (diff === 'Hard' && !isPro) return Alert.alert("LifeOS Pro", "Hard AI is a Pro feature.");
+                      setDifficulty(diff); fullReset();
                     }}
                     style={[styles.diffBtn, difficulty === diff && { backgroundColor: colors.secondary }]}
                   >
@@ -259,6 +286,7 @@ export default function GameScreen({ navigation }) {
               </View>
             )}
 
+            {/* Lobby / Join */}
             {playMode === 'multi' && multiState === 'menu' && (
                 <View style={styles.lobby}>
                     <TouchableOpacity style={styles.hostBtn} onPress={createMultiplayerMatch}>
@@ -273,6 +301,7 @@ export default function GameScreen({ navigation }) {
                 </View>
             )}
 
+            {/* Connection Status */}
             {multiState === 'waiting' && (
                 <View style={styles.waitingRoom}>
                     <ActivityIndicator color={colors.secondary} />
@@ -282,6 +311,7 @@ export default function GameScreen({ navigation }) {
                 </View>
             )}
 
+            {/* The Grid */}
             {(playMode === 'ai' || multiState === 'playing') && (
               <View style={styles.boardWrapper}>
                 <View style={styles.statusBadge}>
@@ -307,7 +337,7 @@ export default function GameScreen({ navigation }) {
                 </TouchableOpacity>
               </View>
             )}
-          </View>
+          </Card>
         )}
       </ScrollView>
     </LinearGradient>
@@ -319,23 +349,28 @@ const styles = StyleSheet.create({
   header: { marginBottom: 30 },
   headerTitle: { fontSize: 32, fontWeight: '900', color: '#FFF', letterSpacing: -1 },
   headerSub: { fontSize: 14, color: colors.textMuted, fontWeight: '600' },
+  
   menuGrid: { gap: 15 },
   menuCard: { backgroundColor: '#1E293B', padding: 25, borderRadius: 24, alignItems: 'center', borderWidth: 1, borderColor: '#334155' },
   iconCircle: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', marginBottom: 15 },
   menuTitle: { fontSize: 18, fontWeight: '900', color: '#FFF' },
   menuSubText: { fontSize: 13, color: colors.textMuted, fontWeight: '600', marginTop: 4 },
+  
   gameSection: { backgroundColor: '#1E293B', borderRadius: 24, padding: 20, borderWidth: 1, borderColor: '#334155' },
   gameHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
   iconBtn: { padding: 8, backgroundColor: '#0F172A', borderRadius: 10 },
   gameTitle: { color: '#FFF', fontSize: 18, fontWeight: '900' },
   gameSubText: { color: colors.textMuted, fontSize: 11, fontWeight: '800' },
+  
   scoreboard: { flexDirection: 'row', backgroundColor: '#0F172A', borderRadius: 15, padding: 10, marginBottom: 20 },
   scoreItem: { flex: 1, alignItems: 'center' },
   scoreLabel: { fontSize: 9, fontWeight: '800', color: colors.textMuted },
   scoreValue: { fontSize: 20, fontWeight: '900' },
+  
   diffContainer: { flexDirection: 'row', gap: 5, marginBottom: 20 },
   diffBtn: { flex: 1, paddingVertical: 8, borderRadius: 10, backgroundColor: '#0F172A', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 4 },
   diffText: { fontSize: 11, fontWeight: '900', color: colors.textMuted },
+  
   lobby: { gap: 15 },
   hostBtn: { backgroundColor: colors.primary, padding: 15, borderRadius: 12, alignItems: 'center' },
   hostBtnText: { color: '#FFF', fontWeight: '900' },
@@ -343,15 +378,19 @@ const styles = StyleSheet.create({
   lobbyInput: { flex: 1, backgroundColor: '#0F172A', borderRadius: 12, padding: 12, color: '#FFF', fontWeight: '800', textAlign: 'center', borderWidth: 1, borderColor: '#334155' },
   lobbyJoinBtn: { backgroundColor: colors.secondary, paddingHorizontal: 25, borderRadius: 12, justifyContent: 'center' },
   lobbyJoinText: { color: '#FFF', fontWeight: '900' },
+  
   waitingRoom: { alignItems: 'center', padding: 20 },
   waitingText: { color: colors.textMuted, marginVertical: 10, fontWeight: '700' },
   codeBox: { backgroundColor: colors.secondary + '20', padding: 15, borderRadius: 15, borderWidth: 1, borderColor: colors.secondary },
   codeText: { fontSize: 24, fontWeight: '900', color: colors.secondary, letterSpacing: 5 },
+  
   boardWrapper: { alignItems: 'center' },
   statusBadge: { backgroundColor: '#0F172A', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 10, marginBottom: 20, borderWidth: 1, borderColor: '#334155' },
   statusBadgeText: { color: '#FFF', fontWeight: '900', fontSize: 12 },
+  
   grid: { width: 280, height: 280, flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center' },
   cell: { width: 85, height: 85, backgroundColor: '#0F172A', borderRadius: 15, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#334155' },
+  
   resetBtn: { padding: 15, borderRadius: 15, alignItems: 'center', backgroundColor: '#0F172A', borderWidth: 1, borderColor: '#334155', width: '100%', marginTop: 25 },
   resetBtnText: { color: colors.textSecondary, fontWeight: '800' }
 });
