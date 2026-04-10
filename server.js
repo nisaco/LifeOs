@@ -65,7 +65,6 @@ const Chat = mongoose.model('Chat', chatSchema);
 // ==========================================
 // 2. GEMINI AI SETUP
 // ==========================================
-// ✅ Added API versioning to fix the v1beta 404 error
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // ==========================================
@@ -214,7 +213,7 @@ app.post('/api/paystack/webhook', async (req, res) => {
                       bundleId,
                       amount: event.data.amount / 100,
                       date: new Date(),
-                      status: 'Completed'
+                      status: 'Completed' // ✅ FIX: Must match AJ database Enum exactly
                     } 
                   } 
                 }
@@ -355,7 +354,7 @@ app.post('/api/chat', async (req, res) => {
     const chatTitle = messages[0].content.substring(0, 30) + (messages[0].content.length > 30 ? '...' : '');
 
     const model = genAI.getGenerativeModel({ 
-      // ✅ FIX: Use the full path models/ prefix to resolve the 404 error
+      // ✅ Using your verified working string
       model: "gemini-3-flash-preview",
       systemInstruction: `You are the official AI Assistant for LifeOS...`
     });
