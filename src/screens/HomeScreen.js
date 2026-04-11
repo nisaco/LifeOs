@@ -496,7 +496,7 @@ export default function HomeScreen({ navigation }) {
 
     }}
 
-    onPress={() => navigation.navigate('DataScreen')}
+    onPress={() => navigation.navigate('Data')}
 
 >
 
