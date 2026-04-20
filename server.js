@@ -40,6 +40,8 @@ const userSchema = new mongoose.Schema({
   subscriptionEnd: { type: Date, default: null },
   dailyChatCount: { type: Number, default: 0 },
   lastChatReset: { type: Date, default: Date.now },
+  limitHitCount: { type: Number, default: 0 }, // ✅ Added missing field from chat logic
+  nextAllowedChatTime: { type: Date, default: null }, // ✅ Added missing field from chat logic
   tasks: { type: Array, default: [] },
   budget: { type: Array, default: [] },
   // ✅ NEW: Added history array for AJEnterprise data purchases
@@ -165,6 +167,7 @@ app.post('/api/paystack/initialize', async (req, res) => {
 
 
 app.post('/api/paystack/webhook', async (req, res) => {
+  // Use raw body for signature verification to avoid JSON formatting issues
   const hash = crypto.createHmac('sha512', process.env.PAYSTACK_SECRET_KEY)
                        .update(JSON.stringify(req.body))
                        .digest('hex');
@@ -202,7 +205,7 @@ app.post('/api/paystack/webhook', async (req, res) => {
                       'Content-Type': 'application/json',
                       'Accept': 'application/json'
                   },
-                  timeout: 30000 // Wait 30 seconds for AJ to wake up
+                  timeout: 35000 // Wait 35 seconds (Render servers often take ~30s to spin up)
               });
               
               console.log(`✅ AJ SUCCESS:`, ajResponse.data);
@@ -227,17 +230,30 @@ app.post('/api/paystack/webhook', async (req, res) => {
           } catch (error) {
               // ✅ 3. THE "BLACK BOX" LOGGER: This tells us exactly who blocked the handshake
               if (error.response) {
-                  // The request was made and the server responded with a status code
-                  console.error("❌ AJ SERVER REJECTED US:");
-                  console.error("Status:", error.response.status);
-                  console.error("Data:", error.response.data);
-                  console.error("Headers:", error.response.headers);
+                  console.error("❌ AJ SERVER REJECTED US:", error.response.status, error.response.data);
               } else if (error.request) {
-                  // The request was made but no response was received
                   console.error("❌ NO HANDSHAKE: AJ server did not respond at all. Check AJ URL.");
               } else {
                   console.error("❌ SETUP ERROR:", error.message);
               }
+              
+              // Still log the order but mark it as failed so user can contact support
+              await User.findOneAndUpdate(
+                { email: userEmail },
+                { 
+                  $push: { 
+                    dataOrders: {
+                      reference: event.data.reference,
+                      network: ajNetwork,
+                      phone,
+                      bundleId,
+                      amount: event.data.amount / 100,
+                      date: new Date(),
+                      status: 'Failed (Contact Admin)'
+                    } 
+                  } 
+                }
+              );
           }
       } else {
           const userEmail = event.data.customer.email;
@@ -330,6 +346,7 @@ app.post('/api/chat', async (req, res) => {
     }
 
     if (!user.isPro) {
+      // Check if user is currently in a "Penalty" cooldown
       if (user.nextAllowedChatTime && now < user.nextAllowedChatTime) {
         return res.status(403).json({ 
           error: "LIMIT_REACHED", 
@@ -337,11 +354,13 @@ app.post('/api/chat', async (req, res) => {
         });
       }
 
+      // Reset if cooldown has passed
       if (user.nextAllowedChatTime && now >= user.nextAllowedChatTime) {
         user.dailyChatCount = 0; 
         user.nextAllowedChatTime = null; 
       }
 
+      // If they hit the cap of 20 chats
       if (user.dailyChatCount >= 20) {
         let penaltyHours = 1; 
         if (user.limitHitCount === 1) penaltyHours = 1.5; 
@@ -364,9 +383,8 @@ app.post('/api/chat', async (req, res) => {
     const chatTitle = messages[0].content.substring(0, 30) + (messages[0].content.length > 30 ? '...' : '');
 
     const model = genAI.getGenerativeModel({ 
-      // ✅ Using your verified working string
       model: "gemini-3-flash-preview",
-      systemInstruction: `You are the official AI Assistant for LifeOS...`
+      systemInstruction: "You are the official AI Assistant for LifeOS. You help with productivity, budgeting, and data purchases."
     });
 
     const history = messages.slice(0, -1).map(msg => ({
